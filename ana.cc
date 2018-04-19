@@ -65,7 +65,8 @@ void parseCommandLine(int argc, char **argv) {
 			nproof = atoi(argv[ii + 1]);
 		} else if (command == "-Ntot") {
 			Ntot = atoi(argv[ii + 1]);
-		} else if (command == "-GUI") showGUI = true;
+		} else if (command == "-GUI")
+			showGUI = true;
 		else if (command == "-tree") doTree = true;
 	}
 }
@@ -103,7 +104,7 @@ int main(int argc, char **argv) {
 	runInfo->SetBranchAddress("runN", &runN);
 	runInfo->SetBranchAddress("dT", &dT);
 
-	double timeBin=30;
+	double timeBin = 30;
 
 	Ttot = 0;
 	for (int irun = 0; irun < runInfo->GetEntries(); irun++) {
@@ -146,7 +147,6 @@ int main(int argc, char **argv) {
 	TH2D *hEneVsTime;
 	TH1D *hEneCorrection;
 	TH1D *hEneMean;
-
 
 	/*Here I determine the different time intervals:
 	 * BEAM:
@@ -216,33 +216,27 @@ int main(int argc, char **argv) {
 	}
 	hTimeIntervals->SetBinContent(0, 0);
 
-
 	/*Now perform the time-depentent energy correction*/
-	hEneVsTime=(TH2D*)myBDXDSTSelector->hEneVsTime->Clone("hEneVsTime");
-	hEneCorrection=new TH1D("hEneCorrection","hEneCorrection",hEneVsTime->GetNbinsX(),0,Ttot);
-	hEneMean=new TH1D("hEneMean","hEneMean",hEneVsTime->GetNbinsX(),0,Ttot);
+	hEneVsTime = (TH2D*) myBDXDSTSelector->hEneVsTime->Clone("hEneVsTime");
+	hEneCorrection = new TH1D("hEneCorrection", "hEneCorrection", hEneVsTime->GetNbinsX(), 0, Ttot);
+	hEneMean = new TH1D("hEneMean", "hEneMean", hEneVsTime->GetNbinsX(), 0, Ttot);
 
 	int fitResult;
 	double landauMean;
 	TH1D *hProj;
-	for (int ibin = 1; ibin < hEneVsTime->GetNbinsX(); ibin++){
+	for (int ibin = 1; ibin < hEneVsTime->GetNbinsX(); ibin++) {
 
-		hProj=hEneVsTime->ProjectionY(Form("proj%i",ibin),ibin,ibin);
-		fitResult=hProj->Fit("landau","","",8,100);
-		hEneCorrection->SetBinContent(ibin,0);
-		if (fitResult==0){
-			landauMean=hProj->GetFunction("landau")->GetParameter(1);
-			if ((landauMean > landauMeanMin)&&(landauMean < landauMeanMax)){
-				hEneMean->SetBinContent(ibin,landauMean);
-				hEneCorrection->SetBinContent(ibin,landauMeanNominal/landauMean);
+		hProj = hEneVsTime->ProjectionY(Form("proj%i", ibin), ibin, ibin);
+		fitResult = hProj->Fit("landau", "", "", 8, 100);
+		hEneCorrection->SetBinContent(ibin, 0);
+		if (fitResult == 0) {
+			landauMean = hProj->GetFunction("landau")->GetParameter(1);
+			if ((landauMean > landauMeanMin) && (landauMean < landauMeanMax)) {
+				hEneMean->SetBinContent(ibin, landauMean);
+				hEneCorrection->SetBinContent(ibin, landauMeanNominal / landauMean);
 			}
 		}
 	}
-
-
-
-
-
 
 	/*Now, process again*/
 	myBDXDSTSelector2->setTimeInterval(Ttot);
@@ -252,7 +246,6 @@ int main(int argc, char **argv) {
 	myBDXDSTSelector2->nEventsTotal = Ntot;
 	myBDXDSTSelector2->sethTimeIntervals(hTimeIntervals);
 	myBDXDSTSelector2->sethEnergyCorrection(hEneCorrection);
-
 
 	DSTChain->Process(myBDXDSTSelector2, opt.c_str(), Ntot, N0);
 
@@ -281,6 +274,10 @@ int main(int argc, char **argv) {
 	myBDXDSTSelector->hEne1->SetLineColor(1);
 	myBDXDSTSelector->hEne1->Draw("HIST");
 
+	c1->cd(6);
+	myBDXDSTSelector->hTemperature1->SetLineColor(1);
+	myBDXDSTSelector->hTemperature1->Draw("HIST");
+
 	c1->cd(7);
 	myBDXDSTSelector->hEneVsTime->Draw("COLZ");
 	c1->cd(8);
@@ -297,16 +294,27 @@ int main(int argc, char **argv) {
 
 	c2->cd(2);
 
-	TH1D *hEneCrystalBeamClone =(TH1D*) myBDXDSTSelector2->hEneCrystalBeam->Clone();
-	hEneCrystalBeamClone->Scale(1. / Tbeam, "width");
+	TH1D *hEneCrystalBeamTrg2Clone = (TH1D*) myBDXDSTSelector2->hEneCrystalBeamTrg2->Clone();
+	hEneCrystalBeamTrg2Clone->Scale(1. / Tbeam, "width");
 
-	TH1D *hEneCrystalCosmicsClone =(TH1D*) myBDXDSTSelector2->hEneCrystalCosmics->Clone();
-	hEneCrystalCosmicsClone->Scale(1. / Tcosmics, "width");
+	TH1D *hEneCrystalCosmicsTrg2Clone = (TH1D*) myBDXDSTSelector2->hEneCrystalCosmicsTrg2->Clone();
+	hEneCrystalCosmicsTrg2Clone->Scale(1. / Tcosmics, "width");
 
+	hEneCrystalBeamTrg2Clone->Draw();
+	hEneCrystalCosmicsTrg2Clone->SetLineColor(2);
+	hEneCrystalCosmicsTrg2Clone->Draw("SAMES");
 
-	hEneCrystalBeamClone->Draw();
-	hEneCrystalCosmicsClone->SetLineColor(2);
-	hEneCrystalCosmicsClone->Draw("SAMES");
+	c2->cd(3);
+
+	TH1D *hEneCrystalBeamTrg4Clone = (TH1D*) myBDXDSTSelector2->hEneCrystalBeamTrg4->Clone();
+	hEneCrystalBeamTrg4Clone->Scale(1. / Tbeam, "width");
+
+	TH1D *hEneCrystalCosmicsTrg4Clone = (TH1D*) myBDXDSTSelector2->hEneCrystalCosmicsTrg4->Clone();
+	hEneCrystalCosmicsTrg4Clone->Scale(1. / Tcosmics, "width");
+
+	hEneCrystalBeamTrg4Clone->Draw();
+	hEneCrystalCosmicsTrg4Clone->SetLineColor(2);
+	hEneCrystalCosmicsTrg4Clone->Draw("SAMES");
 
 	cout << "TBEAM: " << Tbeam << endl;
 	cout << "EOT: " << Qbeam * 1E-6 / 1.6E-19 << endl;
@@ -332,8 +340,11 @@ int main(int argc, char **argv) {
 		hEneCorrection->Write();
 		hTimeIntervals->Write();
 
-		myBDXDSTSelector2->hEneCrystalBeam->Write();
-		myBDXDSTSelector2->hEneCrystalCosmics->Write();
+		myBDXDSTSelector2->hEneCrystalBeamTrg2->Write();
+		myBDXDSTSelector2->hEneCrystalCosmicsTrg2->Write();
+
+		myBDXDSTSelector2->hEneCrystalBeamTrg4->Write();
+		myBDXDSTSelector2->hEneCrystalCosmicsTrg4->Write();
 
 		v.Write("v");
 		ofile->Close();

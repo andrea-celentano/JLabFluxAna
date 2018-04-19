@@ -56,8 +56,11 @@ void BDXDSTSelector2::SlaveBegin(TTree * /*tree*/) {
 	hTrigAllEventsBeam = new TH1D("hTrigAllEventsBeam", "hTrigAllEventsBeam", N, 0, N * Tbin);
 	hTrigAllEventsCosmics = new TH1D("hTrigAllEventsCosmics", "hTrigAllEventsCosmics", N, 0, N * Tbin);
 
-	hEneCrystalBeam = new TH1D("hEneCrystalBeam", "hEneCrystalBeam", 200, 0, 2000);
-	hEneCrystalCosmics = new TH1D("hEneCrystalCosmics", "hEneCrystalCosmics", 200, 0, 2000);
+	hEneCrystalBeamTrg4 = new TH1D("hEneCrystalBeamTrg4", "hEneCrystalBeamTrg4", 200, 0, 2000);
+	hEneCrystalCosmicsTrg4 = new TH1D("hEneCrystalCosmicsTrg4", "hEneCrystalCosmicsTrg4", 200, 0, 2000);
+
+	hEneCrystalBeamTrg2 = new TH1D("hEneCrystalBeamTrg2", "hEneCrystalBeamTrg2", 200, 0, 2000);
+	hEneCrystalCosmicsTrg2 = new TH1D("hEneCrystalCosmicsTrg2", "hEneCrystalCosmicsTrg2", 200, 0, 2000);
 
 	Info("SlaveBegin", "AllHistos to fOutput");
 	TIter next(gDirectory->GetList());
@@ -96,7 +99,8 @@ Bool_t BDXDSTSelector2::Process(Long64_t entry) {
 	/*Variables*/
 	int tWord;
 	int ibin;
-	bool isCrystal = false;
+	bool isCrystalTrg4 = false;
+	bool isCrystalTrg2 = false;
 
 	int eventType;
 
@@ -141,7 +145,8 @@ Bool_t BDXDSTSelector2::Process(Long64_t entry) {
 	}
 
 	tWord = m_EventHeader->getTriggerWords()[0];
-	if ((tWord >> 4) & 0x1) isCrystal = true;
+	if ((tWord >> 4) & 0x1) isCrystalTrg4 = true;
+	if ((tWord >> 2) & 0x1) isCrystalTrg2 = true;
 
 	/*BEAM*/
 	switch (eventType) {
@@ -154,7 +159,7 @@ Bool_t BDXDSTSelector2::Process(Long64_t entry) {
 
 	}
 
-	if (isCrystal == false) return kTRUE;
+	if ((isCrystalTrg4 == false) && (isCrystalTrg2 == false)) return kTRUE;
 
 	if (m_Event->hasCollection(CalorimeterHit::Class(), "CalorimeterHits")) {
 		TIter CaloHitsIter(m_Event->getCollection(CalorimeterHit::Class(), "CalorimeterHits"));
@@ -162,10 +167,12 @@ Bool_t BDXDSTSelector2::Process(Long64_t entry) {
 			if ((fCaloHit->m_channel.sector == 0) && (fCaloHit->m_channel.x == 1) && (fCaloHit->m_channel.y == 0)) {
 				switch (eventType) {
 				case 1:
-					hEneCrystalBeam->Fill(fCaloHit->E * eneCorr);
+					if (isCrystalTrg4) hEneCrystalBeamTrg4->Fill(fCaloHit->E * eneCorr);
+					if (isCrystalTrg2) hEneCrystalBeamTrg2->Fill(fCaloHit->E * eneCorr);
 					break;
 				case 2:
-					hEneCrystalCosmics->Fill(fCaloHit->E * eneCorr);
+					if (isCrystalTrg4) 	hEneCrystalCosmicsTrg4->Fill(fCaloHit->E * eneCorr);
+					if (isCrystalTrg2)  hEneCrystalCosmicsTrg2->Fill(fCaloHit->E * eneCorr);
 					break;
 				}
 			}
@@ -203,8 +210,11 @@ void BDXDSTSelector2::Terminate() {
 	hTrigAllEventsBeam = (TH1D*) fOutput->FindObject("hTrigAllEventsBeam");
 	hTrigAllEventsCosmics = (TH1D*) fOutput->FindObject("hTrigAllEventsCosmics");
 
-	hEneCrystalBeam = (TH1D*) fOutput->FindObject("hEneCrystalBeam");
-	hEneCrystalCosmics = (TH1D*) fOutput->FindObject("hEneCrystalCosmics");
+	hEneCrystalBeamTrg4 = (TH1D*) fOutput->FindObject("hEneCrystalBeamTrg4");
+	hEneCrystalCosmicsTrg4 = (TH1D*) fOutput->FindObject("hEneCrystalCosmicsTrg4");
+
+	hEneCrystalBeamTrg2 = (TH1D*) fOutput->FindObject("hEneCrystalBeamTrg2");
+	hEneCrystalCosmicsTrg2 = (TH1D*) fOutput->FindObject("hEneCrystalCosmicsTrg2");
 
 	hTrigAllEventsBeam->Sumw2();
 	hTrigAllEventsBeam->Scale(1., "width");

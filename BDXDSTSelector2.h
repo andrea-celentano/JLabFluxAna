@@ -67,8 +67,11 @@ public:
 		hTimeIntervals=0;
 		hEnergyCorrection=0;
 
-		hEneCrystalBeam=0;
-		hEneCrystalCosmics=0;
+		hEneCrystalBeamTrg4=0;
+		hEneCrystalCosmicsTrg4=0;
+
+		hEneCrystalBeamTrg2=0;
+		hEneCrystalCosmicsTrg2=0;
 
 
 		NProof=0;
@@ -122,8 +125,12 @@ public:
 	TH1D *hTrigAllEventsBeam;
 	TH1D *hTrigAllEventsCosmics;
 
-	TH1D *hEneCrystalBeam;
-	TH1D *hEneCrystalCosmics;
+	TH1D *hEneCrystalBeamTrg2;
+	TH1D *hEneCrystalCosmicsTrg2;
+
+
+	TH1D *hEneCrystalBeamTrg4;
+	TH1D *hEneCrystalCosmicsTrg4;
 
 
 	/*Variables*/
