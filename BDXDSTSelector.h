@@ -139,7 +139,9 @@ public:
 	TH1D *hCur1,*hCur2;
 	TH1D *hEne1,*hEne2;
 	TH1D *hLive1,*hLive2;
+	TH1D *hTemperature1,*hTemperature2;
 	TH1D* hTrigAllFPGA1,*hTrigAllFPGA2,*hTrigAccFPGA1,*hTrigAccFPGA2;
+
 
 	TH2D *hEneVsTime;
 
