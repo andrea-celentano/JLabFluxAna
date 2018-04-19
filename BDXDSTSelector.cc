@@ -80,9 +80,11 @@ void BDXDSTSelector::SlaveBegin(TTree * /*tree*/) {
 	hTrigAccFPGA1 = new TH1D("hTrigAccFGPA1", "hTrigAccFGPA1", N, 0, N * Tbin);
 	hTrigAccFPGA2 = new TH1D("hTrigAccFGPA2", "hTrigAccFGPA2", N, 0, N * Tbin);
 
+	hTemperature1 = new TH1D("hTemperature1", "hTemperature1", N, 0, N * Tbin);
+	hTemperature2 = new TH1D("hTemperature2", "hTemperature2", N, 0, N * Tbin);
 
-	N=this->Ttot / 600;
-	hEneVsTime = new TH2D("hEneVsTime", "hEneVsTime", N, 0,this->Ttot, 100, 0, 100);
+	N = this->Ttot / 600;
+	hEneVsTime = new TH2D("hEneVsTime", "hEneVsTime", N, 0, this->Ttot, 100, 0, 100);
 
 	Info("SlaveBegin", "AllHistos to fOutput");
 	TIter next(gDirectory->GetList());
@@ -149,6 +151,11 @@ Bool_t BDXDSTSelector::Process(Long64_t entry) {
 
 		}
 
+		if (m_epicsData->hasData("BDXarduinoT")) {
+			hTemperature1->Fill(thisEventT, m_epicsData->getDataValue("BDXarduinoT"));
+			hTemperature1->Fill(thisEventT);
+		}
+
 		if (m_epicsData->hasData("B_DET_BDX_FPGA:livetime")) {
 
 			//thisEventT= m_epicsData->getDataTime("B_DET_BDX_FPGA:livetime")-T0;
@@ -162,14 +169,14 @@ Bool_t BDXDSTSelector::Process(Long64_t entry) {
 
 		/*Use lateral counters trigger to evaluate crystal gain stability*/
 		tWord = m_EventHeader->getTriggerWords()[0];
-		if ((tWord>>1)&0x1) isLateral=true;
-		if (isLateral==false) return kTRUE;
+		if ((tWord >> 1) & 0x1) isLateral = true;
+		if (isLateral == false) return kTRUE;
 
 		if (m_Event->hasCollection(CalorimeterHit::Class(), "CalorimeterHits")) {
 			TIter CaloHitsIter(m_Event->getCollection(CalorimeterHit::Class(), "CalorimeterHits"));
 
 			while (fCaloHit = (CalorimeterHit*) CaloHitsIter.Next()) { //Need to cast to the proper object
-				if ((fCaloHit->m_channel.sector == 0)&&(fCaloHit->m_channel.x == 1)) {
+				if ((fCaloHit->m_channel.sector == 0) && (fCaloHit->m_channel.x == 1)) {
 					hEneVsTime->Fill(thisEventT, fCaloHit->E);
 				}
 			}
@@ -219,13 +226,15 @@ void BDXDSTSelector::Terminate() {
 
 		hLive1 = (TH1D*) fOutput->FindObject("hLive1");
 		hLive2 = (TH1D*) fOutput->FindObject("hLive2");
-
 		hLive1->Divide(hLive2);
 
 		hEne1 = (TH1D*) fOutput->FindObject("hEne1");
 		hEne2 = (TH1D*) fOutput->FindObject("hEne2");
-
 		hEne1->Divide(hEne2);
+
+		hTemperature1 = (TH1D*) fOutput->FindObject("hTemperature1");
+		hTemperature2 = (TH1D*) fOutput->FindObject("hTemperature2");
+		hTemperature1->Divide(hTemperature2);
 
 		hTrigAllFPGA1 = (TH1D*) fOutput->FindObject("hTrigAllFGPA1");
 		hTrigAccFPGA1 = (TH1D*) fOutput->FindObject("hTrigAccFGPA1");
@@ -233,7 +242,7 @@ void BDXDSTSelector::Terminate() {
 		hTrigAccFPGA1->Divide(hLive2);
 		hTrigAllFPGA1->Divide(hLive2);
 
-		hEneVsTime= (TH2D*) fOutput->FindObject("hEneVsTime");
+		hEneVsTime = (TH2D*) fOutput->FindObject("hEneVsTime");
 	}
 
 	/*Rate histos*/
