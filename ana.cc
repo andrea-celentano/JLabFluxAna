@@ -12,6 +12,7 @@
 #include "TProof.h"
 #include "TF1.h"
 #include "TVectorD.h"
+#include "defs.h"
 
 #include "RooRealVar.h"
 #include "RooPlot.h"
@@ -65,7 +66,8 @@ void parseCommandLine(int argc, char **argv) {
 			nproof = atoi(argv[ii + 1]);
 		} else if (command == "-Ntot") {
 			Ntot = atoi(argv[ii + 1]);
-		} else if (command == "-GUI") showGUI = true;
+		} else if (command == "-GUI")
+			showGUI = true;
 		else if (command == "-tree") doTree = true;
 	}
 }
@@ -86,6 +88,8 @@ int main(int argc, char **argv) {
 
 	const double cosmicsCurrentMax = .1;
 	const double cosmicsLivetimeMin = -100; /// 90;
+
+	const double cosmicsTimeWidth = 7200; //seconds - 2 hours bin
 
 	const double landauMeanMin = 10;
 	const double landauMeanMax = 40;
@@ -168,6 +172,7 @@ int main(int argc, char **argv) {
 
 	cout << "After process " << endl;
 	TH1D *hTimeIntervals;
+	TH1D *hTimeBinID;
 	TH2D *hEneVsTime;
 	TH1D *hEneCorrection;
 	TH1D *hEneMean;
@@ -194,12 +199,17 @@ int main(int argc, char **argv) {
 	hTimeIntervals->SetTitle("hTimeIntervals");
 	hTimeIntervals->Reset();
 
+	hTimeBinID = (TH1D*) myBDXDSTSelector->hCur1->Clone("hTimeBinID");
+	hTimeBinID->SetTitle("hTimeBinID");
+	hTimeBinID->Reset();
+
 	cout << hTimeIntervals->GetNbinsX() << endl;
 
 	/*In order to be conservative, the time-intervals analysis proceeds in this way:
 	 * 1. I loop over all the bins in hCur1, hLive1, hEne1 histograms
 	 * 2. For a given bin to be considered "cosmics" or "beam", that beam AND THE PREVIOUS ONE must satisfy the requirements
 	 * 3. The most efficient way to proceed is thus to loop from the maximum bin to the minimum one
+	 *
 	 */
 	double current, energy, livetime;
 	double currentPrev, energyPrev, livetimePrev;
@@ -216,20 +226,20 @@ int main(int argc, char **argv) {
 
 		/*BEAM-1*/
 		if ((current > beamCurrentMin) && (energy > beamEnergyMin) && (livetime > beamLivetimeMin) && (currentPrev > beamCurrentMin) && (energyPrev > beamEnergyMin) && (livetimePrev > beamLivetimeMin)) {
-			hTimeIntervals->SetBinContent(ibin, 1);
+			hTimeIntervals->SetBinContent(ibin, eventType::beam_11GeV);
 			Tbeam += hTimeIntervals->GetBinWidth(ibin);
 			Qbeam += hTimeIntervals->GetBinWidth(ibin) * current; //uC
 		}
 
 		/*BEAM-2*/
 		else if ((current > beamCurrentMin2) && (energy > beamEnergyMin2) && (energy < beamEnergyMax2) && (livetime > beamLivetimeMin2) && (currentPrev > beamCurrentMin2) && (energyPrev > beamEnergyMin2) && (energyPrev < beamEnergyMax2) && (livetimePrev > beamLivetimeMin2)) {
-			hTimeIntervals->SetBinContent(ibin, 10);
+			hTimeIntervals->SetBinContent(ibin, eventType::beam_4GeV);
 			Tbeam2 += hTimeIntervals->GetBinWidth(ibin);
 			Qbeam2 += hTimeIntervals->GetBinWidth(ibin) * current; //uC
 		}
 		/*COSMICS*/
 		else if ((current < cosmicsCurrentMax) && (livetime > cosmicsLivetimeMin) && (currentPrev < cosmicsCurrentMax) && (livetimePrev > cosmicsLivetimeMin)) {
-			hTimeIntervals->SetBinContent(ibin, 2);
+			hTimeIntervals->SetBinContent(ibin, eventType::cosmics);
 			Tcosmics += hTimeIntervals->GetBinWidth(ibin);
 		} else {
 			hTimeIntervals->SetBinContent(ibin, 0);
@@ -258,6 +268,21 @@ int main(int argc, char **argv) {
 			}
 		}
 	}
+	/*Now tag the time of cosmics*/
+	double Tcounter=0;
+	int TbinID=0;
+	hTimeBinID->SetBinContent(0,-1);
+	for (int ibin = 1; ibin < hTimeIntervals->GetNbinsX(); ibin++) {
+		if (hTimeIntervals->GetBinContent(ibin) == eventType::cosmics) {
+			hTimeBinID->SetBinContent(ibin,TbinID);
+			Tcounter+=hTimeIntervals->GetBinWidth(ibin);
+			/*new bin*/
+			if (Tcounter/cosmicsTimeWidth>=1.){
+				Tcounter=0;
+				TbinID++;
+			}
+		}
+	}
 
 	/*Now, process again*/
 	myBDXDSTSelector2->setTimeInterval(Ttot);
@@ -275,7 +300,7 @@ int main(int argc, char **argv) {
 
 	/*Draw*/
 	TCanvas *c1 = new TCanvas("c1", "First pass");
-	c1->Divide(3, 3);
+	c1->Divide(4, 3);
 	c1->cd(1);
 	myBDXDSTSelector->hTrigAllEvents->Draw("HIST");
 	c1->cd(2);
@@ -308,9 +333,12 @@ int main(int argc, char **argv) {
 	hEneMean->Draw();
 	c1->cd(9);
 	myBDXDSTSelector->hEneVsPeakTime->Draw("colz");
+	c1->cd(10);
+	hTimeBinID->Draw();
+	hTimeIntervals->Draw("SAME");
 
-	TCanvas *c1a = new TCanvas("c1a","First pass scintillator1");
-	c1a->Divide(3,3);
+	TCanvas *c1a = new TCanvas("c1a", "First pass scintillator1");
+	c1a->Divide(3, 3);
 	c1a->cd(1);
 	myBDXDSTSelector->hQVsTime1Scint5->Draw("colz");
 	c1a->cd(2);
@@ -319,7 +347,6 @@ int main(int argc, char **argv) {
 	myBDXDSTSelector->hQVsTime1Scint6->Draw("colz");
 	c1a->cd(5);
 	myBDXDSTSelector->hQVsPeakTimeScint6->Draw("colz");
-
 
 	TCanvas *c2 = new TCanvas("c2", "Second pass");
 	c2->Divide(3, 3);
@@ -395,7 +422,6 @@ int main(int argc, char **argv) {
 	c2->cd(9);
 	myBDXDSTSelector2->hEneCrystalVsQScint6->Draw("colz");
 
-
 	cout << "TBEAM: " << Tbeam << endl;
 	cout << "EOT: " << Qbeam * 1E-6 / 1.6E-19 << endl;
 
@@ -411,7 +437,6 @@ int main(int argc, char **argv) {
 	v[2] = Tbeam2;
 	v[3] = Qbeam2 * 1E-6 / 1.6E-19;
 	v[4] = Tcosmics;
-
 
 	/*Write histograms on the output file*/
 	if (ofname != "") {
@@ -444,8 +469,6 @@ int main(int argc, char **argv) {
 
 		myBDXDSTSelector2->hEneCrystalVsQScint5->Write();
 		myBDXDSTSelector2->hEneCrystalVsQScint6->Write();
-
-
 
 		v.Write("v");
 		ofile->Close();
