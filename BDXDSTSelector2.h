@@ -54,7 +54,6 @@ public:
 		m_epicsData = 0;
 		m_Event = 0;
 
-
 		Ttot = 0;
 		T0 = 0;
 
@@ -62,23 +61,30 @@ public:
 		thisEventN = 0;
 		thisEventT = 0;
 
-		hTrigAllEventsBeam=0;
-		hTrigAllEventsCosmics=0;
-		hTimeIntervals=0;
-		hEnergyCorrection=0;
+		hTrigAllEventsBeam = 0;
+		hTrigAllEventsBeam2 = 0;
+		hTrigAllEventsCosmics = 0;
+		hTimeIntervals = 0;
+		hEnergyCorrection = 0;
 
-		hEneCrystalBeamTrg4=0;
-		hEneCrystalCosmicsTrg4=0;
+		hEneCrystalBeamTrg4 = 0;
+		hEneCrystalBeam2Trg4 = 0;
+		hEneCrystalCosmicsTrg4 = 0;
 
-		hEneCrystalBeamTrg2=0;
-		hEneCrystalCosmicsTrg2=0;
+		hEneCrystalBeamTrg2 = 0;
+		hEneCrystalBeam2Trg2 = 0;
+		hEneCrystalCosmicsTrg2 = 0;
 
+		NProof = 0;
+		runNumber = 0;
+		eventNumber = 0;
 
-		NProof=0;
-		runNumber=0;
-		eventNumber=0;
+		Tbin = 300;
 
-		Tbin=300;
+		TPeakMin=100;
+		TPeakMax=500;
+
+		hEneVsPeakTimeTrg2 = 0;
 
 	}
 	virtual ~BDXDSTSelector2() {
@@ -109,39 +115,39 @@ public:
 	virtual void SlaveTerminate();
 	virtual void Terminate();
 
-
 	int eventNumber, runNumber;
-
 
 	/*Pointers. Note that EACH histogram pointer MUST be initialized to 0 in the TSelector constructor*/
 	TEventHeader *m_EventHeader;
 	TEvent *m_Event;
 	epicsData *m_epicsData;
 
-
 	TH1D *hTimeIntervals;
 	TH1D *hEnergyCorrection;
 
 	TH1D *hTrigAllEventsBeam;
+	TH1D *hTrigAllEventsBeam2;
 	TH1D *hTrigAllEventsCosmics;
 
 	TH1D *hEneCrystalBeamTrg2;
+	TH1D *hEneCrystalBeam2Trg2;
 	TH1D *hEneCrystalCosmicsTrg2;
 
-
 	TH1D *hEneCrystalBeamTrg4;
+	TH1D *hEneCrystalBeam2Trg4;
 	TH1D *hEneCrystalCosmicsTrg4;
 
+	TH2D  *hEneVsPeakTimeTrg2;
 
 	/*Variables*/
-	double Ttot, T0,Tbin;
+	double Ttot, T0, Tbin;
 	int thisEventN;
 	double thisEventT;
 	int nEventsTotal;
 	int NProof;
 
 	uint64_t thisEventFineTime;
-
+	double TPeakMin, TPeakMax;
 
 	/*Methods*/
 	double getTimeInterval() {
@@ -151,9 +157,9 @@ public:
 		Ttot = T;
 		Info("setTimeInterval", Form("Ttot set to %f", Ttot));
 	}
-	void setTimeBin(double T){
+	void setTimeBin(double T) {
 		Tbin = T;
-		Info("setTimeBin","Time bin set to %f",Tbin);
+		Info("setTimeBin", "Time bin set to %f", Tbin);
 	}
 	double getT0() {
 		return T0;
@@ -163,20 +169,35 @@ public:
 		Info("setT0", Form("time0 set to %f", T0));
 	}
 
-	void sethTimeIntervals(TH1D *h){
-		hTimeIntervals=h;
+	void sethTimeIntervals(TH1D *h) {
+		hTimeIntervals = h;
 	}
 
-	void sethEnergyCorrection(TH1D *h){
-			hEnergyCorrection=h;
-		}
+	void sethEnergyCorrection(TH1D *h) {
+		hEnergyCorrection = h;
+	}
 
 	void setNProof(int N) {
 		NProof = N;
 	}
+	double getPeakMax() const {
+		return TPeakMax;
+	}
 
+	void setPeakMax(double peakMax) {
+		TPeakMax = peakMax;
+	}
 
-ClassDef(BDXDSTSelector2,1);
+	double getPeakMin() const {
+		return TPeakMin;
+	}
+
+	void setPeakMin(double peakMin) {
+		TPeakMin = peakMin;
+	}
+
+ClassDef(BDXDSTSelector2,1)
+	;
 
 };
 

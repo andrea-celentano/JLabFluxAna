@@ -54,13 +54,18 @@ void BDXDSTSelector2::SlaveBegin(TTree * /*tree*/) {
 
 	/*Create here the histograms.*/
 	hTrigAllEventsBeam = new TH1D("hTrigAllEventsBeam", "hTrigAllEventsBeam", N, 0, N * Tbin);
+	hTrigAllEventsBeam2 = new TH1D("hTrigAllEventsBeam2", "hTrigAllEventsBeam2", N, 0, N * Tbin);
 	hTrigAllEventsCosmics = new TH1D("hTrigAllEventsCosmics", "hTrigAllEventsCosmics", N, 0, N * Tbin);
 
 	hEneCrystalBeamTrg4 = new TH1D("hEneCrystalBeamTrg4", "hEneCrystalBeamTrg4", 200, 0, 2000);
+	hEneCrystalBeam2Trg4 = new TH1D("hEneCrystalBeam2Trg4", "hEneCrystalBeam2Trg4", 200, 0, 2000);
 	hEneCrystalCosmicsTrg4 = new TH1D("hEneCrystalCosmicsTrg4", "hEneCrystalCosmicsTrg4", 200, 0, 2000);
 
 	hEneCrystalBeamTrg2 = new TH1D("hEneCrystalBeamTrg2", "hEneCrystalBeamTrg2", 200, 0, 2000);
+	hEneCrystalBeam2Trg2 = new TH1D("hEneCrystalBeam2Trg2", "hEneCrystalBeam2Trg2", 200, 0, 2000);
 	hEneCrystalCosmicsTrg2 = new TH1D("hEneCrystalCosmicsTrg2", "hEneCrystalCosmicsTrg2", 200, 0, 2000);
+
+	hEneVsPeakTimeTrg2 = new TH2D("hEneVsPeakTimeTrg2", "hEneVsPeakTimeTrg2", 1000, -10, 2400, 400, 0, 1200);
 
 	Info("SlaveBegin", "AllHistos to fOutput");
 	TIter next(gDirectory->GetList());
@@ -126,24 +131,6 @@ Bool_t BDXDSTSelector2::Process(Long64_t entry) {
 	eneCorr = hEnergyCorrection->GetBinContent(ibin);
 	if (eneCorr <= 0) return kTRUE;
 
-	if (m_epicsData->hasData("hac_bcm_average")) {
-		//thisEventT= m_epicsData->getDataTime("hac_bcm_average")-T0;
-		//	cout<<"1: "<<m_Event->getEventHeader()->getEventTime()<<" "<<m_epicsData->getDataTime("hac_bcm_average")<<" "<<m_epicsData->getDataValue("hac_bcm_average")<<endl;
-
-	}
-
-	if (m_epicsData->hasData("HALLA:p")) {
-		//thisEventT= m_epicsData->getDataTime("hac_bcm_average")-T0;
-		//cout<<"2: "<<m_Event->getEventHeader()->getEventTime()<<" "<<m_epicsData->getDataTime("HALLA:p")<<" "<<m_epicsData->getDataValue("HALLA:p")<<endl;
-
-	}
-
-	if (m_epicsData->hasData("B_DET_BDX_FPGA:livetime")) {
-
-		//thisEventT= m_epicsData->getDataTime("B_DET_BDX_FPGA:livetime")-T0;
-
-	}
-
 	tWord = m_EventHeader->getTriggerWords()[0];
 	if ((tWord >> 4) & 0x1) isCrystalTrg4 = true;
 	if ((tWord >> 2) & 0x1) isCrystalTrg2 = true;
@@ -152,6 +139,9 @@ Bool_t BDXDSTSelector2::Process(Long64_t entry) {
 	switch (eventType) {
 	case 1:
 		hTrigAllEventsBeam->Fill(thisEventT);
+		break;
+	case 10:
+		hTrigAllEventsBeam2->Fill(thisEventT);
 		break;
 	case 2:
 		hTrigAllEventsCosmics->Fill(thisEventT);
@@ -168,11 +158,24 @@ Bool_t BDXDSTSelector2::Process(Long64_t entry) {
 				switch (eventType) {
 				case 1:
 					if (isCrystalTrg4) hEneCrystalBeamTrg4->Fill(fCaloHit->E * eneCorr);
-					if (isCrystalTrg2) hEneCrystalBeamTrg2->Fill(fCaloHit->E * eneCorr);
+					if (isCrystalTrg2) {
+						hEneVsPeakTimeTrg2->Fill(fCaloHit->T, fCaloHit->E * eneCorr);
+						if ((fCaloHit->T > TPeakMin) && (fCaloHit->T < TPeakMax)) hEneCrystalBeamTrg2->Fill(fCaloHit->E * eneCorr);
+					}
+					break;
+				case 10:
+					if (isCrystalTrg4) hEneCrystalBeam2Trg4->Fill(fCaloHit->E * eneCorr);
+					if (isCrystalTrg2) {
+						hEneVsPeakTimeTrg2->Fill(fCaloHit->T, fCaloHit->E * eneCorr);
+						if ((fCaloHit->T > TPeakMin) && (fCaloHit->T < TPeakMax)) hEneCrystalBeam2Trg2->Fill(fCaloHit->E * eneCorr);
+					}
 					break;
 				case 2:
-					if (isCrystalTrg4) 	hEneCrystalCosmicsTrg4->Fill(fCaloHit->E * eneCorr);
-					if (isCrystalTrg2)  hEneCrystalCosmicsTrg2->Fill(fCaloHit->E * eneCorr);
+					if (isCrystalTrg4) hEneCrystalCosmicsTrg4->Fill(fCaloHit->E * eneCorr);
+					if (isCrystalTrg2) {
+						hEneVsPeakTimeTrg2->Fill(fCaloHit->T, fCaloHit->E * eneCorr);
+						if ((fCaloHit->T > TPeakMin) && (fCaloHit->T < TPeakMax)) hEneCrystalCosmicsTrg2->Fill(fCaloHit->E * eneCorr);
+					}
 					break;
 				}
 			}
@@ -208,16 +211,24 @@ void BDXDSTSelector2::Terminate() {
 	Info("Terminate", "No more objs");
 
 	hTrigAllEventsBeam = (TH1D*) fOutput->FindObject("hTrigAllEventsBeam");
+	hTrigAllEventsBeam2 = (TH1D*) fOutput->FindObject("hTrigAllEventsBeam2");
 	hTrigAllEventsCosmics = (TH1D*) fOutput->FindObject("hTrigAllEventsCosmics");
 
 	hEneCrystalBeamTrg4 = (TH1D*) fOutput->FindObject("hEneCrystalBeamTrg4");
+	hEneCrystalBeam2Trg4 = (TH1D*) fOutput->FindObject("hEneCrystalBeam2Trg4");
 	hEneCrystalCosmicsTrg4 = (TH1D*) fOutput->FindObject("hEneCrystalCosmicsTrg4");
 
 	hEneCrystalBeamTrg2 = (TH1D*) fOutput->FindObject("hEneCrystalBeamTrg2");
+	hEneCrystalBeam2Trg2 = (TH1D*) fOutput->FindObject("hEneCrystalBeam2Trg2");
 	hEneCrystalCosmicsTrg2 = (TH1D*) fOutput->FindObject("hEneCrystalCosmicsTrg2");
+
+	hEneVsPeakTimeTrg2 = (TH2D*) fOutput->FindObject("hEneVsPeakTimeTrg2");
 
 	hTrigAllEventsBeam->Sumw2();
 	hTrigAllEventsBeam->Scale(1., "width");
+
+	hTrigAllEventsBeam2->Sumw2();
+	hTrigAllEventsBeam2->Scale(1., "width");
 
 	hTrigAllEventsCosmics->Sumw2();
 	hTrigAllEventsCosmics->Scale(1., "width");

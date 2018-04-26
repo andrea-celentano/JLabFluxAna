@@ -86,6 +86,8 @@ void BDXDSTSelector::SlaveBegin(TTree * /*tree*/) {
 	N = this->Ttot / 600;
 	hEneVsTime = new TH2D("hEneVsTime", "hEneVsTime", N, 0, this->Ttot, 100, 0, 100);
 
+	hEneVsPeakTime = new TH2D("hEneVsPeakTime", "hEneVsPeakTime", 1000, -10, 2400, 200, 0, 400);
+
 	Info("SlaveBegin", "AllHistos to fOutput");
 	TIter next(gDirectory->GetList());
 	TObject *obj;
@@ -130,6 +132,7 @@ Bool_t BDXDSTSelector::Process(Long64_t entry) {
 	eventNumber = m_EventHeader->getEventNumber();
 	runNumber = m_EventHeader->getRunNumber();
 
+	if ((m_EventHeader->getTriggerWords()).size() == 0) return kTRUE;
 	/*Rate histograms*/
 	if (isMC == 0) {
 		thisEventT = m_Event->getEventHeader()->getEventTime() - T0;
@@ -153,7 +156,7 @@ Bool_t BDXDSTSelector::Process(Long64_t entry) {
 
 		if (m_epicsData->hasData("BDXarduinoT")) {
 			hTemperature1->Fill(thisEventT, m_epicsData->getDataValue("BDXarduinoT"));
-			hTemperature1->Fill(thisEventT);
+			hTemperature2->Fill(thisEventT);
 		}
 
 		if (m_epicsData->hasData("B_DET_BDX_FPGA:livetime")) {
@@ -176,8 +179,11 @@ Bool_t BDXDSTSelector::Process(Long64_t entry) {
 			TIter CaloHitsIter(m_Event->getCollection(CalorimeterHit::Class(), "CalorimeterHits"));
 
 			while (fCaloHit = (CalorimeterHit*) CaloHitsIter.Next()) { //Need to cast to the proper object
-				if ((fCaloHit->m_channel.sector == 0) && (fCaloHit->m_channel.x == 1)) {
-					hEneVsTime->Fill(thisEventT, fCaloHit->E);
+				if ((fCaloHit->m_channel.sector == 0) && (fCaloHit->m_channel.x == 1) && (fCaloHit->m_channel.y == 0)) {
+					hEneVsPeakTime->Fill(fCaloHit->T, fCaloHit->E);
+					if ((fCaloHit->T > TPeakMin) && (fCaloHit->T < TPeakMax)) {
+						hEneVsTime->Fill(thisEventT, fCaloHit->E);
+					}
 				}
 			}
 		}
@@ -243,6 +249,7 @@ void BDXDSTSelector::Terminate() {
 		hTrigAllFPGA1->Divide(hLive2);
 
 		hEneVsTime = (TH2D*) fOutput->FindObject("hEneVsTime");
+		hEneVsPeakTime = (TH2D*) fOutput->FindObject("hEneVsPeakTime");
 	}
 
 	/*Rate histos*/

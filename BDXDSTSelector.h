@@ -70,12 +70,16 @@ public:
 		hEne1=0;
 		hEne2=0;
 
+		hTemperature1=0;
+		hTemperature2=0;
+
 		hTrigAllFPGA1=0;
 		hTrigAllFPGA2=0;
 
 		hTrigAccFPGA1=0;
 		hTrigAccFPGA2=0;
 		hEneVsTime=0;
+		hEneVsPeakTime=0;
 
 		hTrigBits = 0;
 		hTrigBitsPulser = 0;
@@ -88,6 +92,8 @@ public:
 
 		Tbin=300;
 
+		TPeakMin=100;
+		TPeakMax=500;
 	}
 	virtual ~BDXDSTSelector() {
 	}
@@ -144,7 +150,7 @@ public:
 
 
 	TH2D *hEneVsTime;
-
+	TH2D *hEneVsPeakTime;
 	/*Variables*/
 	double Ttot, T0,Tbin;
 	int thisEventN;
@@ -153,6 +159,8 @@ public:
 	int NProof;
 
 	uint64_t thisEventFineTime;
+
+	double TPeakMin,TPeakMax;
 
 	int isMC;
 
@@ -181,7 +189,24 @@ public:
 	}
 
 
-ClassDef(BDXDSTSelector,1);
+
+	double getPeakMax() const {
+		return TPeakMax;
+	}
+
+	void setPeakMax(double peakMax) {
+		TPeakMax = peakMax;
+	}
+
+	double getPeakMin() const {
+		return TPeakMin;
+	}
+
+	void setPeakMin(double peakMin) {
+		TPeakMin = peakMin;
+	}
+
+	ClassDef(BDXDSTSelector,1);
 
 };
 

@@ -14,11 +14,15 @@ TARGET = ana
 
 OBJECTS = $(patsubst %.cc, %.o, $(wildcard *.cc))
 
-all:   dict $(TARGET)
+all:   dict dict2 $(TARGET)
 
 dict: BDXDSTSelector.h
 	@echo "Generating dictionary $@..."
 	@rootcint -v -f BDXDSTSelector_Dict.cc -c -p $(IFLAGS) BDXDSTSelector.h	BDXDSTSelector_LinkDef.h
+	
+dict2: BDXDSTSelector2.h
+	@echo "Generating dictionary $@..."
+	@rootcint -v -f BDXDSTSelector2_Dict.cc -c -p $(IFLAGS) BDXDSTSelector2.h BDXDSTSelector2_LinkDef.h	
 
 $(TARGET): $(OBJECTS)
 	$(LD) -shared -fPIC -o libBDXDSTSelector.so $(LFLAGS) $(ROOTLIB) $(LIBS) $^  

@@ -65,8 +65,7 @@ void parseCommandLine(int argc, char **argv) {
 			nproof = atoi(argv[ii + 1]);
 		} else if (command == "-Ntot") {
 			Ntot = atoi(argv[ii + 1]);
-		} else if (command == "-GUI")
-			showGUI = true;
+		} else if (command == "-GUI") showGUI = true;
 		else if (command == "-tree") doTree = true;
 	}
 }
@@ -75,6 +74,26 @@ int main(int argc, char **argv) {
 
 	TApplication gui("GUI", 0, NULL);
 	parseCommandLine(argc, argv);
+
+	const double beamCurrentMin = 8;
+	const double beamEnergyMin = 10E3; //MeV
+	const double beamLivetimeMin = 90;
+
+	const double beamCurrentMin2 = 8;
+	const double beamEnergyMin2 = 4E3; //MeV
+	const double beamEnergyMax2 = 4.5E3; //MeV
+	const double beamLivetimeMin2 = -100;
+
+	const double cosmicsCurrentMax = .1;
+	const double cosmicsLivetimeMin = -100; /// 90;
+
+	const double landauMeanMin = 10;
+	const double landauMeanMax = 40;
+
+	const double landauMeanNominal = 30;
+
+	const double TPeakMin = 100;
+	const double TPeakMax = 500;
 
 	int doFit = 0;
 
@@ -126,6 +145,9 @@ int main(int argc, char **argv) {
 	myBDXDSTSelector->setTimeBin(timeBin); //5 minutes per bin
 	myBDXDSTSelector->setNProof(nproof);
 
+	myBDXDSTSelector->setPeakMin(TPeakMin);
+	myBDXDSTSelector->setPeakMax(TPeakMax);
+
 	if (nproof != 0) {
 		cout << "USING PROOF WITH " << nproof << " WORKERS! " << endl;
 		TProof *proof = TProof::Open(Form("workers=%i", nproof));
@@ -160,20 +182,10 @@ int main(int argc, char **argv) {
 	 * ** LIVETIME >
 	 */
 
-	const double beamCurrentMin = 8;
-	const double beamEnergyMin = 10E3; //MeV
-	const double beamLivetimeMin = 90;
-
-	const double cosmicsCurrentMax = .1;
-	const double cosmicsLivetimeMin = 90;
-
-	const double landauMeanMin = 10;
-	const double landauMeanMax = 40;
-
-	const double landauMeanNominal = 30;
-
 	double Tbeam = 0;
 	double Qbeam = 0;
+	double Tbeam2 = 0;
+	double Qbeam2 = 0;
 	double Tcosmics = 0;
 
 	hTimeIntervals = (TH1D*) myBDXDSTSelector->hCur1->Clone("hTimeIntervals");
@@ -200,11 +212,18 @@ int main(int argc, char **argv) {
 
 		cout << "ibin " << ibin << " " << current << " " << energy << " " << livetime << endl;
 
-		/*BEAM*/
+		/*BEAM-1*/
 		if ((current > beamCurrentMin) && (energy > beamEnergyMin) && (livetime > beamLivetimeMin) && (currentPrev > beamCurrentMin) && (energyPrev > beamEnergyMin) && (livetimePrev > beamLivetimeMin)) {
 			hTimeIntervals->SetBinContent(ibin, 1);
 			Tbeam += hTimeIntervals->GetBinWidth(ibin);
 			Qbeam += hTimeIntervals->GetBinWidth(ibin) * current; //uC
+		}
+
+		/*BEAM-2*/
+		else if ((current > beamCurrentMin2) && (energy > beamEnergyMin2) && (energy < beamEnergyMax2) && (livetime > beamLivetimeMin2) && (currentPrev > beamCurrentMin2) && (energyPrev > beamEnergyMin2) && (energyPrev < beamEnergyMax2) && (livetimePrev > beamLivetimeMin2)) {
+			hTimeIntervals->SetBinContent(ibin, 10);
+			Tbeam2 += hTimeIntervals->GetBinWidth(ibin);
+			Qbeam2 += hTimeIntervals->GetBinWidth(ibin) * current; //uC
 		}
 		/*COSMICS*/
 		else if ((current < cosmicsCurrentMax) && (livetime > cosmicsLivetimeMin) && (currentPrev < cosmicsCurrentMax) && (livetimePrev > cosmicsLivetimeMin)) {
@@ -227,7 +246,7 @@ int main(int argc, char **argv) {
 	for (int ibin = 1; ibin < hEneVsTime->GetNbinsX(); ibin++) {
 
 		hProj = hEneVsTime->ProjectionY(Form("proj%i", ibin), ibin, ibin);
-		fitResult = hProj->Fit("landau", "", "", 8, 100);
+		fitResult = hProj->Fit("landau", "L", "", 8, 100);
 		hEneCorrection->SetBinContent(ibin, 0);
 		if (fitResult == 0) {
 			landauMean = hProj->GetFunction("landau")->GetParameter(1);
@@ -246,6 +265,9 @@ int main(int argc, char **argv) {
 	myBDXDSTSelector2->nEventsTotal = Ntot;
 	myBDXDSTSelector2->sethTimeIntervals(hTimeIntervals);
 	myBDXDSTSelector2->sethEnergyCorrection(hEneCorrection);
+
+	myBDXDSTSelector2->setPeakMin(TPeakMin);
+	myBDXDSTSelector2->setPeakMax(TPeakMax);
 
 	DSTChain->Process(myBDXDSTSelector2, opt.c_str(), Ntot, N0);
 
@@ -283,12 +305,16 @@ int main(int argc, char **argv) {
 	c1->cd(8);
 	hEneMean->Draw();
 	c1->cd(9);
-	hEneCorrection->Draw();
+	myBDXDSTSelector->hEneVsPeakTime->Draw("colz");
 
 	TCanvas *c2 = new TCanvas("c2", "Second pass");
 	c2->Divide(2, 3);
 	c2->cd(1);
 	myBDXDSTSelector2->hTrigAllEventsBeam->Draw("HIST");
+
+	myBDXDSTSelector2->hTrigAllEventsBeam2->SetLineColor(3);
+	myBDXDSTSelector2->hTrigAllEventsBeam2->Draw("HIST");
+
 	myBDXDSTSelector2->hTrigAllEventsCosmics->SetLineColor(2);
 	myBDXDSTSelector2->hTrigAllEventsCosmics->Draw("HISTSAME");
 
@@ -297,10 +323,17 @@ int main(int argc, char **argv) {
 	TH1D *hEneCrystalBeamTrg2Clone = (TH1D*) myBDXDSTSelector2->hEneCrystalBeamTrg2->Clone();
 	hEneCrystalBeamTrg2Clone->Scale(1. / Tbeam, "width");
 
+	TH1D *hEneCrystalBeam2Trg2Clone = (TH1D*) myBDXDSTSelector2->hEneCrystalBeam2Trg2->Clone();
+	hEneCrystalBeam2Trg2Clone->Scale(1. / Tbeam2, "width");
+
 	TH1D *hEneCrystalCosmicsTrg2Clone = (TH1D*) myBDXDSTSelector2->hEneCrystalCosmicsTrg2->Clone();
 	hEneCrystalCosmicsTrg2Clone->Scale(1. / Tcosmics, "width");
 
 	hEneCrystalBeamTrg2Clone->Draw();
+
+	hEneCrystalBeam2Trg2Clone->SetLineColor(3);
+	hEneCrystalBeam2Trg2Clone->Draw("SAMES");
+
 	hEneCrystalCosmicsTrg2Clone->SetLineColor(2);
 	hEneCrystalCosmicsTrg2Clone->Draw("SAMES");
 
@@ -309,21 +342,37 @@ int main(int argc, char **argv) {
 	TH1D *hEneCrystalBeamTrg4Clone = (TH1D*) myBDXDSTSelector2->hEneCrystalBeamTrg4->Clone();
 	hEneCrystalBeamTrg4Clone->Scale(1. / Tbeam, "width");
 
+	TH1D *hEneCrystalBeam2Trg4Clone = (TH1D*) myBDXDSTSelector2->hEneCrystalBeam2Trg4->Clone();
+	hEneCrystalBeam2Trg4Clone->Scale(1. / Tbeam2, "width");
+
 	TH1D *hEneCrystalCosmicsTrg4Clone = (TH1D*) myBDXDSTSelector2->hEneCrystalCosmicsTrg4->Clone();
 	hEneCrystalCosmicsTrg4Clone->Scale(1. / Tcosmics, "width");
 
 	hEneCrystalBeamTrg4Clone->Draw();
+
+	hEneCrystalBeam2Trg4Clone->SetLineColor(3);
+	hEneCrystalBeam2Trg4Clone->Draw("SAMES");
+
 	hEneCrystalCosmicsTrg4Clone->SetLineColor(2);
 	hEneCrystalCosmicsTrg4Clone->Draw("SAMES");
 
+	c2->cd(4);
+	myBDXDSTSelector2->hEneVsPeakTimeTrg2->Draw("colz");
+
 	cout << "TBEAM: " << Tbeam << endl;
 	cout << "EOT: " << Qbeam * 1E-6 / 1.6E-19 << endl;
+
+	cout << "TBEAM2: " << Tbeam2 << endl;
+	cout << "EOT2: " << Qbeam2 * 1E-6 / 1.6E-19 << endl;
+
 	cout << "TCOSMICS: " << Tcosmics << endl;
 
-	TVectorD v(3);
+	TVectorD v(5);
 	v[0] = Tbeam;
 	v[1] = Qbeam * 1E-6 / 1.6E-19;
-	v[2] = Tcosmics;
+	v[2] = Tbeam2;
+	v[3] = Qbeam2 * 1E-6 / 1.6E-19;
+	v[4] = Tcosmics;
 
 	/*Write histograms on the output file*/
 	if (ofname != "") {
@@ -341,10 +390,14 @@ int main(int argc, char **argv) {
 		hTimeIntervals->Write();
 
 		myBDXDSTSelector2->hEneCrystalBeamTrg2->Write();
+		myBDXDSTSelector2->hEneCrystalBeam2Trg2->Write();
 		myBDXDSTSelector2->hEneCrystalCosmicsTrg2->Write();
 
 		myBDXDSTSelector2->hEneCrystalBeamTrg4->Write();
+		myBDXDSTSelector2->hEneCrystalBeam2Trg4->Write();
 		myBDXDSTSelector2->hEneCrystalCosmicsTrg4->Write();
+
+		myBDXDSTSelector2->hEneVsPeakTimeTrg2->Write();
 
 		v.Write("v");
 		ofile->Close();
