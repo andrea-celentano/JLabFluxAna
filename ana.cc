@@ -226,20 +226,20 @@ int main(int argc, char **argv) {
 
 		/*BEAM-1*/
 		if ((current > beamCurrentMin) && (energy > beamEnergyMin) && (livetime > beamLivetimeMin) && (currentPrev > beamCurrentMin) && (energyPrev > beamEnergyMin) && (livetimePrev > beamLivetimeMin)) {
-			hTimeIntervals->SetBinContent(ibin, eventType::beam_11GeV);
+			hTimeIntervals->SetBinContent(ibin, beam_11GeV);
 			Tbeam += hTimeIntervals->GetBinWidth(ibin);
 			Qbeam += hTimeIntervals->GetBinWidth(ibin) * current; //uC
 		}
 
 		/*BEAM-2*/
 		else if ((current > beamCurrentMin2) && (energy > beamEnergyMin2) && (energy < beamEnergyMax2) && (livetime > beamLivetimeMin2) && (currentPrev > beamCurrentMin2) && (energyPrev > beamEnergyMin2) && (energyPrev < beamEnergyMax2) && (livetimePrev > beamLivetimeMin2)) {
-			hTimeIntervals->SetBinContent(ibin, eventType::beam_4GeV);
+			hTimeIntervals->SetBinContent(ibin, beam_4GeV);
 			Tbeam2 += hTimeIntervals->GetBinWidth(ibin);
 			Qbeam2 += hTimeIntervals->GetBinWidth(ibin) * current; //uC
 		}
 		/*COSMICS*/
 		else if ((current < cosmicsCurrentMax) && (livetime > cosmicsLivetimeMin) && (currentPrev < cosmicsCurrentMax) && (livetimePrev > cosmicsLivetimeMin)) {
-			hTimeIntervals->SetBinContent(ibin, eventType::cosmics);
+			hTimeIntervals->SetBinContent(ibin, cosmics);
 			Tcosmics += hTimeIntervals->GetBinWidth(ibin);
 		} else {
 			hTimeIntervals->SetBinContent(ibin, 0);
@@ -273,7 +273,7 @@ int main(int argc, char **argv) {
 	int TbinID=0;
 	hTimeBinID->SetBinContent(0,-1);
 	for (int ibin = 1; ibin < hTimeIntervals->GetNbinsX(); ibin++) {
-		if (hTimeIntervals->GetBinContent(ibin) == eventType::cosmics) {
+		if (hTimeIntervals->GetBinContent(ibin) == cosmics) {
 			hTimeBinID->SetBinContent(ibin,TbinID);
 			Tcounter+=hTimeIntervals->GetBinWidth(ibin);
 			/*new bin*/
