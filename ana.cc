@@ -429,7 +429,7 @@ int main(int argc, char **argv) {
 	cout << "EOT2: " << Qbeam2 * 1E-6 / 1.6E-19 << endl;
 
 	cout << "TCOSMICS: " << Tcosmics << endl;
-
+	cout << "BEAM COSMICS: "<<TbinID+1<<" divide: "<<Tcosmics/cosmicsTimeWidth<<endl;
 	/*Use this ordering to avoid redo computation @ 11 GeV*/
 	TVectorD v(5);
 	v[0] = Tbeam;
@@ -437,7 +437,6 @@ int main(int argc, char **argv) {
 	v[2] = Tbeam2;
 	v[3] = Qbeam2 * 1E-6 / 1.6E-19;
 	v[4] = Tcosmics;
-
 	/*Write histograms on the output file*/
 	if (ofname != "") {
 		TFile *ofile = new TFile(ofname.c_str(), "recreate");
