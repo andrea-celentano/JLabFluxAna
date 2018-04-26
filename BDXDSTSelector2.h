@@ -75,16 +75,33 @@ public:
 		hEneCrystalBeam2Trg2 = 0;
 		hEneCrystalCosmicsTrg2 = 0;
 
+
+
+		hEneNoScintCrystalBeamTrg4 = 0;
+		hEneNoScintCrystalBeam2Trg4 = 0;
+		hEneNoScintCrystalCosmicsTrg4 = 0;
+
+		hEneNoScintCrystalBeamTrg2 = 0;
+		hEneNoScintCrystalBeam2Trg2 = 0;
+		hEneNoScintCrystalCosmicsTrg2 = 0;
+
+
+
+		hEneCrystalVsQScint5 = 0;
+		hEneCrystalVsQScint6 = 0;
+
 		NProof = 0;
 		runNumber = 0;
 		eventNumber = 0;
 
 		Tbin = 300;
 
-		TPeakMin=100;
-		TPeakMax=500;
+		TPeakMin = 100;
+		TPeakMax = 500;
 
 		hEneVsPeakTimeTrg2 = 0;
+
+		QScintThr = 50;
 
 	}
 	virtual ~BDXDSTSelector2() {
@@ -137,7 +154,18 @@ public:
 	TH1D *hEneCrystalBeam2Trg4;
 	TH1D *hEneCrystalCosmicsTrg4;
 
-	TH2D  *hEneVsPeakTimeTrg2;
+	TH1D *hEneNoScintCrystalBeamTrg2;
+	TH1D *hEneNoScintCrystalBeam2Trg2;
+	TH1D *hEneNoScintCrystalCosmicsTrg2;
+
+	TH1D *hEneNoScintCrystalBeamTrg4;
+	TH1D *hEneNoScintCrystalBeam2Trg4;
+	TH1D *hEneNoScintCrystalCosmicsTrg4;
+
+	TH2D *hEneVsPeakTimeTrg2;
+
+	TH2D *hEneCrystalVsQScint5;
+	TH2D *hEneCrystalVsQScint6;
 
 	/*Variables*/
 	double Ttot, T0, Tbin;
@@ -148,6 +176,7 @@ public:
 
 	uint64_t thisEventFineTime;
 	double TPeakMin, TPeakMax;
+	double QScintThr;
 
 	/*Methods*/
 	double getTimeInterval() {
@@ -194,6 +223,14 @@ public:
 
 	void setPeakMin(double peakMin) {
 		TPeakMin = peakMin;
+	}
+
+	double getScintThr() const {
+		return QScintThr;
+	}
+
+	void setScintThr(double scintThr) {
+		QScintThr = scintThr;
 	}
 
 ClassDef(BDXDSTSelector2,1)

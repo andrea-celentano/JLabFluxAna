@@ -85,8 +85,15 @@ void BDXDSTSelector::SlaveBegin(TTree * /*tree*/) {
 
 	N = this->Ttot / 600;
 	hEneVsTime = new TH2D("hEneVsTime", "hEneVsTime", N, 0, this->Ttot, 100, 0, 100);
-
 	hEneVsPeakTime = new TH2D("hEneVsPeakTime", "hEneVsPeakTime", 1000, -10, 2400, 200, 0, 400);
+
+	hQVsTime1Scint5 = new TH2D("hQVsTime1Scint5", "hQVsTime1Scint5", N, 0, this->Ttot, 1000, 0, 50);
+	hQVsTime1Scint6 = new TH2D("hQVsTime1Scint6", "hQVsTime1Scint6", N, 0, this->Ttot, 1000, 0, 50);
+
+
+	hQVsPeakTimeScint5= new TH2D("hQVsPeakTimeScint5","hQVsPeakTimeScint5",1000,-10,2400,500,0,50);
+	hQVsPeakTimeScint6= new TH2D("hQVsPeakTimeScint6","hQVsPeakTimeScint6",1000,-10,2400,500,0,50);
+
 
 	Info("SlaveBegin", "AllHistos to fOutput");
 	TIter next(gDirectory->GetList());
@@ -125,7 +132,8 @@ Bool_t BDXDSTSelector::Process(Long64_t entry) {
 	/*Variables*/
 	int tWord;
 	bool isLateral = false;
-
+	bool isPulser = false;
+	bool isCrystal = false;
 	/*Get the event header and fill some variables*/
 	m_EventHeader = m_Event->getEventHeader();
 	m_epicsData = m_EventHeader->getEpicsData();
@@ -173,16 +181,36 @@ Bool_t BDXDSTSelector::Process(Long64_t entry) {
 		/*Use lateral counters trigger to evaluate crystal gain stability*/
 		tWord = m_EventHeader->getTriggerWords()[0];
 		if ((tWord >> 1) & 0x1) isLateral = true;
-		if (isLateral == false) return kTRUE;
+		if ((tWord >> 2) & 0x1) isCrystal = true;
+		if ((tWord >> 31) & 0x1) isPulser = true;
+		if ((isLateral == false) && (isPulser == false) && (isCrystal == false)) return kTRUE;
 
-		if (m_Event->hasCollection(CalorimeterHit::Class(), "CalorimeterHits")) {
-			TIter CaloHitsIter(m_Event->getCollection(CalorimeterHit::Class(), "CalorimeterHits"));
+		if (isLateral) {
+			if (m_Event->hasCollection(CalorimeterHit::Class(), "CalorimeterHits")) {
+				TIter CaloHitsIter(m_Event->getCollection(CalorimeterHit::Class(), "CalorimeterHits"));
 
-			while (fCaloHit = (CalorimeterHit*) CaloHitsIter.Next()) { //Need to cast to the proper object
-				if ((fCaloHit->m_channel.sector == 0) && (fCaloHit->m_channel.x == 1) && (fCaloHit->m_channel.y == 0)) {
-					hEneVsPeakTime->Fill(fCaloHit->T, fCaloHit->E);
-					if ((fCaloHit->T > TPeakMin) && (fCaloHit->T < TPeakMax)) {
-						hEneVsTime->Fill(thisEventT, fCaloHit->E);
+				while (fCaloHit = (CalorimeterHit*) CaloHitsIter.Next()) { //Need to cast to the proper object
+					if ((fCaloHit->m_channel.sector == 0) && (fCaloHit->m_channel.x == 1) && (fCaloHit->m_channel.y == 0)) {
+						hEneVsPeakTime->Fill(fCaloHit->T, fCaloHit->E);
+						if ((fCaloHit->T > TPeakMin) && (fCaloHit->T < TPeakMax)) {
+							hEneVsTime->Fill(thisEventT, fCaloHit->E);
+						}
+					}
+				}
+			}
+		}
+		if (isPulser) {
+			if (m_Event->hasCollection(IntVetoHit::Class(), "IntVetoHits")) {
+				TIter IntVetoHitsIter(m_Event->getCollection(IntVetoHit::Class(), "IntVetoHits"));
+
+				while (fIntVetoHit = (IntVetoHit*) IntVetoHitsIter.Next()) { //Need to cast to the proper object
+					if (fIntVetoHit->m_channel.component == 5) {
+						hQVsPeakTimeScint5->Fill(fIntVetoHit->T,fIntVetoHit->Q);
+						hQVsTime1Scint5->Fill(thisEventT,fIntVetoHit->Q);
+					}
+					else if (fIntVetoHit->m_channel.component == 6) {
+						hQVsPeakTimeScint6->Fill(fIntVetoHit->T,fIntVetoHit->Q);
+						hQVsTime1Scint6->Fill(thisEventT,fIntVetoHit->Q);
 					}
 				}
 			}
@@ -250,6 +278,12 @@ void BDXDSTSelector::Terminate() {
 
 		hEneVsTime = (TH2D*) fOutput->FindObject("hEneVsTime");
 		hEneVsPeakTime = (TH2D*) fOutput->FindObject("hEneVsPeakTime");
+
+		hQVsTime1Scint5 = (TH2D*) fOutput->FindObject("hQVsTime1Scint5");
+		hQVsTime1Scint6 = (TH2D*) fOutput->FindObject("hQVsTime1Scint6");
+
+		hQVsPeakTimeScint5= (TH2D*) fOutput->FindObject("hQVsPeakTimeScint5");
+		hQVsPeakTimeScint6= (TH2D*) fOutput->FindObject("hQVsPeakTimeScint6");
 	}
 
 	/*Rate histos*/

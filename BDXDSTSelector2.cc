@@ -65,7 +65,18 @@ void BDXDSTSelector2::SlaveBegin(TTree * /*tree*/) {
 	hEneCrystalBeam2Trg2 = new TH1D("hEneCrystalBeam2Trg2", "hEneCrystalBeam2Trg2", 200, 0, 2000);
 	hEneCrystalCosmicsTrg2 = new TH1D("hEneCrystalCosmicsTrg2", "hEneCrystalCosmicsTrg2", 200, 0, 2000);
 
+	hEneNoScintCrystalBeamTrg4 = new TH1D("hEneNoScintCrystalBeamTrg4", "hEneNoScintCrystalBeamTrg4", 200, 0, 2000);
+	hEneNoScintCrystalBeam2Trg4 = new TH1D("hEneNoScintCrystalBeam2Trg4", "hEneNoScintCrystalBeam2Trg4", 200, 0, 2000);
+	hEneNoScintCrystalCosmicsTrg4 = new TH1D("hEneNoScintCrystalCosmicsTrg4", "hEneNoScintCrystalCosmicsTrg4", 200, 0, 2000);
+
+	hEneNoScintCrystalBeamTrg2 = new TH1D("hEneNoScintCrystalBeamTrg2", "hEneNoScintCrystalBeamTrg2", 200, 0, 2000);
+	hEneNoScintCrystalBeam2Trg2 = new TH1D("hEneNoScintCrystalBeam2Trg2", "hEneNoScintCrystalBeam2Trg2", 200, 0, 2000);
+	hEneNoScintCrystalCosmicsTrg2 = new TH1D("hEneNoScintCrystalCosmicsTrg2", "hEneNoScintCrystalCosmicsTrg2", 200, 0, 2000);
+
 	hEneVsPeakTimeTrg2 = new TH2D("hEneVsPeakTimeTrg2", "hEneVsPeakTimeTrg2", 1000, -10, 2400, 400, 0, 1200);
+
+	hEneCrystalVsQScint5 = new TH2D("hEneCrystalVsQScint5", "hEneCrystalVsQScint5;Crs;Scint5", 400, 0, 1200, 400, -10, 400);
+	hEneCrystalVsQScint6 = new TH2D("hEneCrystalVsQScint6", "hEneCrystalVsQScint6;Crs;Scint6", 400, 0, 1200, 400, -10, 400);
 
 	Info("SlaveBegin", "AllHistos to fOutput");
 	TIter next(gDirectory->GetList());
@@ -107,8 +118,12 @@ Bool_t BDXDSTSelector2::Process(Long64_t entry) {
 	bool isCrystalTrg4 = false;
 	bool isCrystalTrg2 = false;
 
+	bool hasFrontalScint = false;
+
 	int eventType;
 
+	double QScint5 = 0;
+	double QScint6 = 0;
 	double eneCorr;
 
 	/*Get the event header and fill some variables*/
@@ -148,33 +163,65 @@ Bool_t BDXDSTSelector2::Process(Long64_t entry) {
 		break;
 
 	}
-
 	if ((isCrystalTrg4 == false) && (isCrystalTrg2 == false)) return kTRUE;
+
+	/*Check the scintillator*/
+	if (m_Event->hasCollection(IntVetoHit::Class(), "IntVetoHits")) {
+		TIter IntVetoHitsIter(m_Event->getCollection(IntVetoHit::Class(), "IntVetoHits"));
+
+		while (fIntVetoHit = (IntVetoHit*) IntVetoHitsIter.Next()) { //Need to cast to the proper object
+			if (fIntVetoHit->m_channel.component == 5) {
+				QScint5 = fIntVetoHit->Q;
+			} else if (fIntVetoHit->m_channel.component == 6) {
+				QScint6 = fIntVetoHit->Q;
+			}
+		}
+	}
+
+	/*Here check the presence or not of the scintillators in the front*/
+	if ((QScint5 > QScintThr) || (QScint6 > QScintThr)) {
+		hasFrontalScint = true;
+	}
 
 	if (m_Event->hasCollection(CalorimeterHit::Class(), "CalorimeterHits")) {
 		TIter CaloHitsIter(m_Event->getCollection(CalorimeterHit::Class(), "CalorimeterHits"));
 		while (fCaloHit = (CalorimeterHit*) CaloHitsIter.Next()) { //Need to cast to the proper object
 			if ((fCaloHit->m_channel.sector == 0) && (fCaloHit->m_channel.x == 1) && (fCaloHit->m_channel.y == 0)) {
 				switch (eventType) {
-				case 1:
+				case 1: //11 GeV
 					if (isCrystalTrg4) hEneCrystalBeamTrg4->Fill(fCaloHit->E * eneCorr);
 					if (isCrystalTrg2) {
 						hEneVsPeakTimeTrg2->Fill(fCaloHit->T, fCaloHit->E * eneCorr);
-						if ((fCaloHit->T > TPeakMin) && (fCaloHit->T < TPeakMax)) hEneCrystalBeamTrg2->Fill(fCaloHit->E * eneCorr);
+						if ((fCaloHit->T > TPeakMin) && (fCaloHit->T < TPeakMax)) {
+							hEneCrystalBeamTrg2->Fill(fCaloHit->E * eneCorr);
+							hEneCrystalVsQScint5->Fill(fCaloHit->E * eneCorr, QScint5);
+							hEneCrystalVsQScint6->Fill(fCaloHit->E * eneCorr, QScint6);
+							if (!hasFrontalScint) hEneNoScintCrystalBeamTrg2->Fill(fCaloHit->E * eneCorr);
+						}
 					}
 					break;
-				case 10:
+				case 10: //4 GeV
 					if (isCrystalTrg4) hEneCrystalBeam2Trg4->Fill(fCaloHit->E * eneCorr);
 					if (isCrystalTrg2) {
 						hEneVsPeakTimeTrg2->Fill(fCaloHit->T, fCaloHit->E * eneCorr);
-						if ((fCaloHit->T > TPeakMin) && (fCaloHit->T < TPeakMax)) hEneCrystalBeam2Trg2->Fill(fCaloHit->E * eneCorr);
+						if ((fCaloHit->T > TPeakMin) && (fCaloHit->T < TPeakMax)) {
+							hEneCrystalBeam2Trg2->Fill(fCaloHit->E * eneCorr);
+							hEneCrystalVsQScint5->Fill(fCaloHit->E * eneCorr, QScint5);
+							hEneCrystalVsQScint6->Fill(fCaloHit->E * eneCorr, QScint6);
+							if (!hasFrontalScint) hEneNoScintCrystalBeam2Trg2->Fill(fCaloHit->E * eneCorr);
+						}
 					}
 					break;
-				case 2:
+				case 2: //no-beam
 					if (isCrystalTrg4) hEneCrystalCosmicsTrg4->Fill(fCaloHit->E * eneCorr);
 					if (isCrystalTrg2) {
 						hEneVsPeakTimeTrg2->Fill(fCaloHit->T, fCaloHit->E * eneCorr);
-						if ((fCaloHit->T > TPeakMin) && (fCaloHit->T < TPeakMax)) hEneCrystalCosmicsTrg2->Fill(fCaloHit->E * eneCorr);
+						if ((fCaloHit->T > TPeakMin) && (fCaloHit->T < TPeakMax)) {
+							hEneCrystalCosmicsTrg2->Fill(fCaloHit->E * eneCorr);
+							hEneCrystalVsQScint5->Fill(fCaloHit->E * eneCorr, QScint5);
+							hEneCrystalVsQScint6->Fill(fCaloHit->E * eneCorr, QScint6);
+							if (!hasFrontalScint) hEneNoScintCrystalCosmicsTrg2->Fill(fCaloHit->E * eneCorr);
+						}
 					}
 					break;
 				}
@@ -222,7 +269,18 @@ void BDXDSTSelector2::Terminate() {
 	hEneCrystalBeam2Trg2 = (TH1D*) fOutput->FindObject("hEneCrystalBeam2Trg2");
 	hEneCrystalCosmicsTrg2 = (TH1D*) fOutput->FindObject("hEneCrystalCosmicsTrg2");
 
+	hEneNoScintCrystalBeamTrg4 = (TH1D*) fOutput->FindObject("hEneNoScintCrystalBeamTrg4");
+	hEneNoScintCrystalBeam2Trg4 = (TH1D*) fOutput->FindObject("hEneNoScintCrystalBeam2Trg4");
+	hEneNoScintCrystalCosmicsTrg4 = (TH1D*) fOutput->FindObject("hEneNoScintCrystalCosmicsTrg4");
+
+	hEneNoScintCrystalBeamTrg2 = (TH1D*) fOutput->FindObject("hEneNoScintCrystalBeamTrg2");
+	hEneNoScintCrystalBeam2Trg2 = (TH1D*) fOutput->FindObject("hEneNoScintCrystalBeam2Trg2");
+	hEneNoScintCrystalCosmicsTrg2 = (TH1D*) fOutput->FindObject("hEneNoScintCrystalCosmicsTrg2");
+
 	hEneVsPeakTimeTrg2 = (TH2D*) fOutput->FindObject("hEneVsPeakTimeTrg2");
+
+	hEneCrystalVsQScint5 = (TH2D*) fOutput->FindObject("hEneCrystalVsQScint5");
+	hEneCrystalVsQScint6 = (TH2D*) fOutput->FindObject("hEneCrystalVsQScint6");
 
 	hTrigAllEventsBeam->Sumw2();
 	hTrigAllEventsBeam->Scale(1., "width");

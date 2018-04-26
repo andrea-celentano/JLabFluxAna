@@ -84,6 +84,13 @@ public:
 		hTrigBits = 0;
 		hTrigBitsPulser = 0;
 
+		hQVsTime1Scint5=0;
+		hQVsTime1Scint6=0;
+
+		hQVsPeakTimeScint5=0;
+		hQVsPeakTimeScint6=0;
+
+
 		hCounter = 0;
 
 		NProof=0;
@@ -151,6 +158,15 @@ public:
 
 	TH2D *hEneVsTime;
 	TH2D *hEneVsPeakTime;
+
+
+	/*Scintillator*/
+	TH2D *hQVsTime1Scint5;
+	TH2D *hQVsTime1Scint6;
+	TH2D *hQVsPeakTimeScint5;
+	TH2D *hQVsPeakTimeScint6;
+
+
 	/*Variables*/
 	double Ttot, T0,Tbin;
 	int thisEventN;

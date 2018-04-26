@@ -95,6 +95,8 @@ int main(int argc, char **argv) {
 	const double TPeakMin = 100;
 	const double TPeakMax = 500;
 
+	const double QScintThr = 50;
+
 	int doFit = 0;
 
 	string opt = "";
@@ -268,7 +270,7 @@ int main(int argc, char **argv) {
 
 	myBDXDSTSelector2->setPeakMin(TPeakMin);
 	myBDXDSTSelector2->setPeakMax(TPeakMax);
-
+	myBDXDSTSelector2->setScintThr(QScintThr);
 	DSTChain->Process(myBDXDSTSelector2, opt.c_str(), Ntot, N0);
 
 	/*Draw*/
@@ -307,8 +309,20 @@ int main(int argc, char **argv) {
 	c1->cd(9);
 	myBDXDSTSelector->hEneVsPeakTime->Draw("colz");
 
+	TCanvas *c1a = new TCanvas("c1a","First pass scintillator1");
+	c1a->Divide(3,3);
+	c1a->cd(1);
+	myBDXDSTSelector->hQVsTime1Scint5->Draw("colz");
+	c1a->cd(2);
+	myBDXDSTSelector->hQVsPeakTimeScint5->Draw("colz");
+	c1a->cd(4);
+	myBDXDSTSelector->hQVsTime1Scint6->Draw("colz");
+	c1a->cd(5);
+	myBDXDSTSelector->hQVsPeakTimeScint6->Draw("colz");
+
+
 	TCanvas *c2 = new TCanvas("c2", "Second pass");
-	c2->Divide(2, 3);
+	c2->Divide(3, 3);
 	c2->cd(1);
 	myBDXDSTSelector2->hTrigAllEventsBeam->Draw("HIST");
 
@@ -356,8 +370,31 @@ int main(int argc, char **argv) {
 	hEneCrystalCosmicsTrg4Clone->SetLineColor(2);
 	hEneCrystalCosmicsTrg4Clone->Draw("SAMES");
 
-	c2->cd(4);
+	c2->cd(5);
+	TH1D *hEneNoScintCrystalBeamTrg2Clone = (TH1D*) myBDXDSTSelector2->hEneNoScintCrystalBeamTrg2->Clone();
+	hEneNoScintCrystalBeamTrg2Clone->Scale(1. / Tbeam, "width");
+
+	TH1D *hEneNoScintCrystalBeam2Trg2Clone = (TH1D*) myBDXDSTSelector2->hEneNoScintCrystalBeam2Trg2->Clone();
+	hEneNoScintCrystalBeam2Trg2Clone->Scale(1. / Tbeam2, "width");
+
+	TH1D *hEneNoScintCrystalCosmicsTrg2Clone = (TH1D*) myBDXDSTSelector2->hEneNoScintCrystalCosmicsTrg2->Clone();
+	hEneNoScintCrystalCosmicsTrg2Clone->Scale(1. / Tcosmics, "width");
+
+	hEneNoScintCrystalBeamTrg2Clone->Draw();
+
+	hEneNoScintCrystalBeam2Trg2Clone->SetLineColor(3);
+	hEneNoScintCrystalBeam2Trg2Clone->Draw("SAMES");
+
+	hEneNoScintCrystalCosmicsTrg2Clone->SetLineColor(2);
+	hEneNoScintCrystalCosmicsTrg2Clone->Draw("SAMES");
+
+	c2->cd(7);
 	myBDXDSTSelector2->hEneVsPeakTimeTrg2->Draw("colz");
+	c2->cd(8);
+	myBDXDSTSelector2->hEneCrystalVsQScint5->Draw("colz");
+	c2->cd(9);
+	myBDXDSTSelector2->hEneCrystalVsQScint6->Draw("colz");
+
 
 	cout << "TBEAM: " << Tbeam << endl;
 	cout << "EOT: " << Qbeam * 1E-6 / 1.6E-19 << endl;
@@ -367,12 +404,14 @@ int main(int argc, char **argv) {
 
 	cout << "TCOSMICS: " << Tcosmics << endl;
 
+	/*Use this ordering to avoid redo computation @ 11 GeV*/
 	TVectorD v(5);
 	v[0] = Tbeam;
 	v[1] = Qbeam * 1E-6 / 1.6E-19;
 	v[2] = Tbeam2;
 	v[3] = Qbeam2 * 1E-6 / 1.6E-19;
 	v[4] = Tcosmics;
+
 
 	/*Write histograms on the output file*/
 	if (ofname != "") {
@@ -398,6 +437,15 @@ int main(int argc, char **argv) {
 		myBDXDSTSelector2->hEneCrystalCosmicsTrg4->Write();
 
 		myBDXDSTSelector2->hEneVsPeakTimeTrg2->Write();
+
+		myBDXDSTSelector2->hEneNoScintCrystalBeamTrg2->Write();
+		myBDXDSTSelector2->hEneNoScintCrystalBeam2Trg2->Write();
+		myBDXDSTSelector2->hEneNoScintCrystalCosmicsTrg2->Write();
+
+		myBDXDSTSelector2->hEneCrystalVsQScint5->Write();
+		myBDXDSTSelector2->hEneCrystalVsQScint6->Write();
+
+
 
 		v.Write("v");
 		ofile->Close();
