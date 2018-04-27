@@ -157,21 +157,19 @@ Bool_t BDXDSTSelector2::Process(Long64_t entry) {
 	if ((tWord >> 2) & 0x1) isCrystalTrg2 = true;
 
 	/*BEAM*/
-	timeBinID=-1;
+	timeBinID = -1;
 	switch (eventType) {
 	case beam_11GeV:
 		hTrigAllEventsBeam->Fill(thisEventT);
 		break;
 	case beam_4GeV:
 		hTrigAllEventsBeam2->Fill(thisEventT);
-
 		break;
 	case cosmics:
 		hTrigAllEventsCosmics->Fill(thisEventT);
 		ibin = hTimeIntervals->FindBin(thisEventT);
-		timeBinID=hTimeBinID->GetBinContent(ibin);
+		timeBinID = hTimeBinID->GetBinContent(ibin);
 		break;
-
 	}
 	if ((isCrystalTrg4 == false) && (isCrystalTrg2 == false)) return kTRUE;
 
@@ -198,7 +196,7 @@ Bool_t BDXDSTSelector2::Process(Long64_t entry) {
 		while (fCaloHit = (CalorimeterHit*) CaloHitsIter.Next()) { //Need to cast to the proper object
 			if ((fCaloHit->m_channel.sector == 0) && (fCaloHit->m_channel.x == 1) && (fCaloHit->m_channel.y == 0)) {
 				switch (eventType) {
-				case 1: //11 GeV
+				case beam_11GeV: //11 GeV
 					if (isCrystalTrg4) hEneCrystalBeamTrg4->Fill(fCaloHit->E * eneCorr);
 					if (isCrystalTrg2) {
 						hEneVsPeakTimeTrg2->Fill(fCaloHit->T, fCaloHit->E * eneCorr);
@@ -210,7 +208,7 @@ Bool_t BDXDSTSelector2::Process(Long64_t entry) {
 						}
 					}
 					break;
-				case 10: //4 GeV
+				case beam_4GeV: //4 GeV
 					if (isCrystalTrg4) hEneCrystalBeam2Trg4->Fill(fCaloHit->E * eneCorr);
 					if (isCrystalTrg2) {
 						hEneVsPeakTimeTrg2->Fill(fCaloHit->T, fCaloHit->E * eneCorr);
@@ -222,7 +220,7 @@ Bool_t BDXDSTSelector2::Process(Long64_t entry) {
 						}
 					}
 					break;
-				case 2: //no-beam
+				case cosmics: //no-beam
 					if (isCrystalTrg4) hEneCrystalCosmicsTrg4->Fill(fCaloHit->E * eneCorr);
 					if (isCrystalTrg2) {
 						hEneVsPeakTimeTrg2->Fill(fCaloHit->T, fCaloHit->E * eneCorr);
@@ -230,10 +228,9 @@ Bool_t BDXDSTSelector2::Process(Long64_t entry) {
 							hEneCrystalCosmicsTrg2->Fill(fCaloHit->E * eneCorr);
 							hEneCrystalVsQScint5->Fill(fCaloHit->E * eneCorr, QScint5);
 							hEneCrystalVsQScint6->Fill(fCaloHit->E * eneCorr, QScint6);
-							if ((timeBinID>=0)&&(timeBinID<nTimeBins)){
+							if ((timeBinID >= 0) && (timeBinID < nTimeBins)) {
 								hTimeBins[timeBinID]->Fill(fCaloHit->E * eneCorr);
 							}
-
 
 							if (!hasFrontalScint) hEneNoScintCrystalCosmicsTrg2->Fill(fCaloHit->E * eneCorr);
 						}
