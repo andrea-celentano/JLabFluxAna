@@ -162,7 +162,11 @@ int main(int argc, char **argv) {
 		proof->Exec("gSystem->Load(\"${BDXRECO_ROOT}/lib/libJANA.so\")");
 		proof->Exec("gSystem->Load(\"libbdxRecoExt.so\")");
 		proof->Exec("gSystem->Load(\"libbdxReco.so\")");
+#ifdef JLAB
+		proof->Exec("gSystem->Load(\"/data02/DST/pass2/DST_2hole/JLabFluxAna/libBDXDSTSelector.so\")");
+#else
 		proof->Exec("gSystem->Load(\"/mnt_work/apcx4/celentano/BeamDump/JLabFlux/JLabFluxAna/libBDXDSTSelector.so\")");
+#endif
 		proof->SetParameter("PROOF_Packetizer", "TPacketizer");
 		DSTChain->SetProof(1);
 	}
@@ -296,6 +300,8 @@ int main(int argc, char **argv) {
 	myBDXDSTSelector2->setPeakMin(TPeakMin);
 	myBDXDSTSelector2->setPeakMax(TPeakMax);
 	myBDXDSTSelector2->setScintThr(QScintThr);
+	myBDXDSTSelector2->sethTimeBinID(hTimeBinID,TbinID+1);
+
 	DSTChain->Process(myBDXDSTSelector2, opt.c_str(), Ntot, N0);
 
 	/*Draw*/
@@ -334,8 +340,8 @@ int main(int argc, char **argv) {
 	c1->cd(9);
 	myBDXDSTSelector->hEneVsPeakTime->Draw("colz");
 	c1->cd(10);
-	hTimeBinID->Draw();
-	hTimeIntervals->Draw("SAME");
+	hTimeIntervals->Draw();
+	hTimeBinID->Draw("SAME");
 
 	TCanvas *c1a = new TCanvas("c1a", "First pass scintillator1");
 	c1a->Divide(3, 3);
@@ -431,13 +437,20 @@ int main(int argc, char **argv) {
 	cout << "TCOSMICS: " << Tcosmics << endl;
 	cout << "BEAM COSMICS: "<<TbinID+1<<" divide: "<<Tcosmics/cosmicsTimeWidth<<endl;
 	/*Use this ordering to avoid redo computation @ 11 GeV*/
-	TVectorD v(5);
+	TVectorD v(6);
 	v[0] = Tbeam;
 	v[1] = Qbeam * 1E-6 / 1.6E-19;
 	v[2] = Tbeam2;
 	v[3] = Qbeam2 * 1E-6 / 1.6E-19;
 	v[4] = Tcosmics;
+	v[5] = TbinID+1;
 	/*Write histograms on the output file*/
+
+	TObjArray *hArray=new TObjArray();
+	for (int ii=0;ii<(TbinID+1);ii++){
+		hArray->Add(myBDXDSTSelector2->hTimeBins[ii]);
+	}
+
 	if (ofname != "") {
 		TFile *ofile = new TFile(ofname.c_str(), "recreate");
 
@@ -469,6 +482,7 @@ int main(int argc, char **argv) {
 		myBDXDSTSelector2->hEneCrystalVsQScint5->Write();
 		myBDXDSTSelector2->hEneCrystalVsQScint6->Write();
 
+		hArray->Write();
 		v.Write("v");
 		ofile->Close();
 	}

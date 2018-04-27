@@ -23,7 +23,7 @@
 #include <TH2D.h>
 #include <TAxis.h>
 #include <TCanvas.h>
-
+#include <TObjArray.h>
 // Headers needed by this particular selector
 #include "EventBuilder/TEvent.h"
 #include "EventBuilder/TEventHeader.h"
@@ -66,6 +66,8 @@ public:
 		hTrigAllEventsCosmics = 0;
 		hTimeIntervals = 0;
 		hEnergyCorrection = 0;
+		hTimeBinID=0;
+		nTimeBins=0;
 
 		hEneCrystalBeamTrg4 = 0;
 		hEneCrystalBeam2Trg4 = 0;
@@ -84,7 +86,6 @@ public:
 		hEneNoScintCrystalBeamTrg2 = 0;
 		hEneNoScintCrystalBeam2Trg2 = 0;
 		hEneNoScintCrystalCosmicsTrg2 = 0;
-
 
 
 		hEneCrystalVsQScint5 = 0;
@@ -142,6 +143,11 @@ public:
 	TH1D *hTimeIntervals;
 	TH1D *hEnergyCorrection;
 
+	int nTimeBins;
+	TH1D *hTimeBinID;
+	vector<TH1D*> hTimeBins;
+
+
 	TH1D *hTrigAllEventsBeam;
 	TH1D *hTrigAllEventsBeam2;
 	TH1D *hTrigAllEventsCosmics;
@@ -178,6 +184,7 @@ public:
 	double TPeakMin, TPeakMax;
 	double QScintThr;
 
+
 	/*Methods*/
 	double getTimeInterval() {
 		return Ttot;
@@ -200,6 +207,11 @@ public:
 
 	void sethTimeIntervals(TH1D *h) {
 		hTimeIntervals = h;
+	}
+
+	void sethTimeBinID(TH1D *h,int nBins){
+		hTimeBinID=h;
+		nTimeBins=nBins;
 	}
 
 	void sethEnergyCorrection(TH1D *h) {

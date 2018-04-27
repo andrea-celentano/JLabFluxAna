@@ -31,6 +31,7 @@
 #include <TGraph.h>
 #include <TCanvas.h>
 #include <vector>
+#include "defs.h"
 
 void BDXDSTSelector2::Begin(TTree * /*tree*/) {
 	// The Begin() function is called at the start of the query.
@@ -78,6 +79,10 @@ void BDXDSTSelector2::SlaveBegin(TTree * /*tree*/) {
 	hEneCrystalVsQScint5 = new TH2D("hEneCrystalVsQScint5", "hEneCrystalVsQScint5;Crs;Scint5", 400, 0, 1200, 400, -10, 400);
 	hEneCrystalVsQScint6 = new TH2D("hEneCrystalVsQScint6", "hEneCrystalVsQScint6;Crs;Scint6", 400, 0, 1200, 400, -10, 400);
 
+	for (int ii = 0; ii < nTimeBins; ii++) {
+		hTimeBins.push_back(new TH1D(Form("hEneCrystalCosmicsTrg2_%i", ii), Form("hEneCrystalCosmicsTrg2_%i", ii), 200, 0, 2000));
+	}
+
 	Info("SlaveBegin", "AllHistos to fOutput");
 	TIter next(gDirectory->GetList());
 	TObject *obj;
@@ -121,6 +126,7 @@ Bool_t BDXDSTSelector2::Process(Long64_t entry) {
 	bool hasFrontalScint = false;
 
 	int eventType;
+	int timeBinID;
 
 	double QScint5 = 0;
 	double QScint6 = 0;
@@ -151,15 +157,19 @@ Bool_t BDXDSTSelector2::Process(Long64_t entry) {
 	if ((tWord >> 2) & 0x1) isCrystalTrg2 = true;
 
 	/*BEAM*/
+	timeBinID=-1;
 	switch (eventType) {
-	case 1:
+	case beam_11GeV:
 		hTrigAllEventsBeam->Fill(thisEventT);
 		break;
-	case 10:
+	case beam_4GeV:
 		hTrigAllEventsBeam2->Fill(thisEventT);
+
 		break;
-	case 2:
+	case cosmics:
 		hTrigAllEventsCosmics->Fill(thisEventT);
+		ibin = hTimeIntervals->FindBin(thisEventT);
+		timeBinID=hTimeBinID->GetBinContent(ibin);
 		break;
 
 	}
@@ -220,6 +230,11 @@ Bool_t BDXDSTSelector2::Process(Long64_t entry) {
 							hEneCrystalCosmicsTrg2->Fill(fCaloHit->E * eneCorr);
 							hEneCrystalVsQScint5->Fill(fCaloHit->E * eneCorr, QScint5);
 							hEneCrystalVsQScint6->Fill(fCaloHit->E * eneCorr, QScint6);
+							if ((timeBinID>=0)&&(timeBinID<nTimeBins)){
+								hTimeBins[timeBinID]->Fill(fCaloHit->E * eneCorr);
+							}
+
+
 							if (!hasFrontalScint) hEneNoScintCrystalCosmicsTrg2->Fill(fCaloHit->E * eneCorr);
 						}
 					}
@@ -290,6 +305,11 @@ void BDXDSTSelector2::Terminate() {
 
 	hTrigAllEventsCosmics->Sumw2();
 	hTrigAllEventsCosmics->Scale(1., "width");
+
+	hTimeBins.clear();
+	for (int ii = 0; ii < nTimeBins; ii++) {
+		hTimeBins.push_back((TH1D*) fOutput->FindObject(Form("hEneCrystalCosmicsTrg2_%i", ii)));
+	}
 
 }
 
