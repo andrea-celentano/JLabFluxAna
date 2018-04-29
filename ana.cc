@@ -129,7 +129,7 @@ int main(int argc, char **argv) {
 	runInfo->SetBranchAddress("runN", &runN);
 	runInfo->SetBranchAddress("dT", &dT);
 
-	double timeBin = 30;
+	double timeBin = 120;
 
 	Ttot = 0;
 	for (int irun = 0; irun < runInfo->GetEntries(); irun++) {
