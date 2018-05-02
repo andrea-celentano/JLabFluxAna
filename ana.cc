@@ -444,9 +444,12 @@ int main(int argc, char **argv) {
 		myBDXDSTSelector2->hEneNoScintCrystalMCTrg2->Draw();
 	}
 	c2->cd(7);
-	myBDXDSTSelector2->hEneVsPeakTimeTrg2->Draw("colz");
+	if (!isMC) myBDXDSTSelector2->hEneVsPeakTimeTrg2->Draw("colz");
+	else myBDXDSTSelector2->hEneElectronGEN->Draw();
+
 	c2->cd(8);
-	myBDXDSTSelector2->hEneCrystalVsQScint5->Draw("colz");
+	if (!isMC) myBDXDSTSelector2->hEneCrystalVsQScint5->Draw("colz");
+	else myBDXDSTSelector2->hEneElectronGENvsDEP->Draw("colz");
 	c2->cd(9);
 	myBDXDSTSelector2->hEneCrystalVsQScint6->Draw("colz");
 

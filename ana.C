@@ -1,6 +1,6 @@
 void ana() {
 
-	const int nFiles = 9;
+	const int nFiles = 10;
 	string fnames[nFiles];
 
 	string folder = "data/120s/";
@@ -14,7 +14,7 @@ void ana() {
 	fnames[6] = "out.638.root";
 	fnames[7] = "out.639.root";
 	fnames[8] = "out.640.root";
-
+	fnames[9] = "out.641.root";
 	/**/
 	TFile *f;
 	TVectorD *v;
@@ -25,7 +25,7 @@ void ana() {
 	double EOT = 0;
 	double EOT2 = 0;
 
-	double eneThr = 1000;
+	double eneThr = 100;
 
 	TH1D *hBeam;
 	TH1D *hBeam2;

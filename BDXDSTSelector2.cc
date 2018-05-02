@@ -81,6 +81,9 @@ void BDXDSTSelector2::SlaveBegin(TTree * /*tree*/) {
 	hEneCrystalVsQScint5 = new TH2D("hEneCrystalVsQScint5", "hEneCrystalVsQScint5;Crs;Scint5", 400, 0, 1200, 400, -10, 400);
 	hEneCrystalVsQScint6 = new TH2D("hEneCrystalVsQScint6", "hEneCrystalVsQScint6;Crs;Scint6", 400, 0, 1200, 400, -10, 400);
 
+	hEneElectronGEN=new TH1D("hEneElectronGEN","hEneElectronGEN",400,0,4000);
+	hEneElectronGENvsDEP=new TH2D("hEneElectronGENvsDEP","hEneElectronGENvsDEP",400,0,4000,400,0,4000);
+
 	if (!isMC) {
 		for (int ii = 0; ii < nTimeBins; ii++) {
 			hTimeBins.push_back(new TH1D(Form("hEneCrystalCosmicsTrg2_%i", ii), Form("hEneCrystalCosmicsTrg2_%i", ii), 200, 0, 2000));
@@ -119,6 +122,7 @@ Bool_t BDXDSTSelector2::Process(Long64_t entry) {
 	/*Objects to read collections*/
 	CalorimeterHit *fCaloHit;
 	IntVetoHit *fIntVetoHit;
+	GenParticle *fGenParticle;
 
 	/*Variables*/
 	int tWord;
@@ -135,19 +139,21 @@ Bool_t BDXDSTSelector2::Process(Long64_t entry) {
 	double QScint6 = 0;
 	double eneCorr;
 
+	double thiseElectron,vzElectron,eElectron,angleElectron;
+
+	eElectron=-9999;
 	/*Get the event header and fill some variables*/
 	m_EventHeader = m_Event->getEventHeader();
 	m_epicsData = m_EventHeader->getEpicsData();
 	eventNumber = m_EventHeader->getEventNumber();
 	runNumber = m_EventHeader->getRunNumber();
 
-	if (m_EventHeader == 0){
-		Error("Process","no m_eventHeader!");
+	if (m_EventHeader == 0) {
+		Error("Process", "no m_eventHeader!");
 		return kTRUE;
 	}
 	if ((m_EventHeader->getTriggerWords().size() == 0) && (!isMC)) return kTRUE;
-	if (!isMC)
-		thisEventT = m_Event->getEventHeader()->getEventTime() - T0;
+	if (!isMC) thisEventT = m_Event->getEventHeader()->getEventTime() - T0;
 	else
 		thisEventT = 0;
 
@@ -196,6 +202,25 @@ Bool_t BDXDSTSelector2::Process(Long64_t entry) {
 		if ((isCrystalTrg4 == false) && (isCrystalTrg2 == false)) return kTRUE;
 	}
 
+	/*Check gen particle*/
+	if (m_Event->hasCollection(GenParticle::Class(), "GenParticles")) {
+		TIter GenParticlesIter(m_Event->getCollection(GenParticle::Class(), "GenParticles"));
+		while (fGenParticle = (GenParticle*) GenParticlesIter.Next()) { //Need to cast to the proper object
+			if (abs(fGenParticle->pid) == 11) {
+				thiseElectron = sqrt(fGenParticle->px * fGenParticle->px + fGenParticle->py * fGenParticle->py + fGenParticle->pz * fGenParticle->pz);
+				if (thiseElectron > eElectron) {
+					eElectron = thiseElectron;
+					vzElectron = fGenParticle->vz;
+					angleElectron = fGenParticle->pz / sqrt(fGenParticle->px * fGenParticle->px + fGenParticle->py * fGenParticle->py + fGenParticle->pz * fGenParticle->pz);
+				}
+			}
+		}
+	}
+
+	if (isMC) {
+		cout<<eElectron<<endl;
+		hEneElectronGEN->Fill(eElectron);
+	}
 
 	/*Check the scintillator*/
 	if (m_Event->hasCollection(IntVetoHit::Class(), "IntVetoHits")) {
@@ -210,8 +235,6 @@ Bool_t BDXDSTSelector2::Process(Long64_t entry) {
 		}
 	}
 
-
-
 	/*Here check the presence or not of the scintillators in the front*/
 	if ((QScint5 > QScintThr) || (QScint6 > QScintThr)) {
 		hasFrontalScint = true;
@@ -220,7 +243,7 @@ Bool_t BDXDSTSelector2::Process(Long64_t entry) {
 	if (m_Event->hasCollection(CalorimeterHit::Class(), "CalorimeterHits")) {
 		TIter CaloHitsIter(m_Event->getCollection(CalorimeterHit::Class(), "CalorimeterHits"));
 		while (fCaloHit = (CalorimeterHit*) CaloHitsIter.Next()) { //Need to cast to the proper object
-			if ((fCaloHit->m_channel.sector == 0) && (((fCaloHit->m_channel.x == 1)&&(!isMC))||((fCaloHit->m_channel.x == 0)&&(isMC))) && (fCaloHit->m_channel.y == 0)) {
+			if ((fCaloHit->m_channel.sector == 0) && (((fCaloHit->m_channel.x == 1) && (!isMC)) || ((fCaloHit->m_channel.x == 0) && (isMC))) && (fCaloHit->m_channel.y == 0)) {
 				switch (eventType) {
 				case beam_11GeV: //11 GeV
 					if (isCrystalTrg4) hEneCrystalBeamTrg4->Fill(fCaloHit->E * eneCorr);
@@ -267,6 +290,7 @@ Bool_t BDXDSTSelector2::Process(Long64_t entry) {
 					hEneCrystalVsQScint5->Fill(fCaloHit->E * eneCorr, QScint5);
 					hEneCrystalVsQScint6->Fill(fCaloHit->E * eneCorr, QScint6);
 					if (!hasFrontalScint) hEneNoScintCrystalMCTrg2->Fill(fCaloHit->E * eneCorr);
+					hEneElectronGENvsDEP->Fill(eElectron,fCaloHit->E*eneCorr);
 					break;
 				}
 			}

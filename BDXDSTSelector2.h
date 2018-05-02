@@ -40,6 +40,8 @@
 #include "EventBuilder/TEventHeader.h"
 #include "EPICS/epicsData.h"
 
+#include "MC/GenParticle.h"
+
 class BDXDSTSelector2: public TSelector {
 public:
 
@@ -89,6 +91,10 @@ public:
 
 		hEneCrystalVsQScint5 = 0;
 		hEneCrystalVsQScint6 = 0;
+
+		hEneElectronGEN=0;
+		hEneElectronGENvsDEP=0;
+
 
 		NProof = 0;
 		runNumber = 0;
@@ -174,6 +180,9 @@ public:
 	TH2D *hEneCrystalVsQScint5;
 	TH2D *hEneCrystalVsQScint6;
 
+
+	TH1D* hEneElectronGEN;
+	TH2D* hEneElectronGENvsDEP;
 	/*Variables*/
 	double Ttot, T0, Tbin;
 	int thisEventN;
