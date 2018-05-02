@@ -66,8 +66,8 @@ public:
 		hTrigAllEventsCosmics = 0;
 		hTimeIntervals = 0;
 		hEnergyCorrection = 0;
-		hTimeBinID=0;
-		nTimeBins=0;
+		hTimeBinID = 0;
+		nTimeBins = 0;
 
 		hEneCrystalBeamTrg4 = 0;
 		hEneCrystalBeam2Trg4 = 0;
@@ -76,8 +76,7 @@ public:
 		hEneCrystalBeamTrg2 = 0;
 		hEneCrystalBeam2Trg2 = 0;
 		hEneCrystalCosmicsTrg2 = 0;
-
-
+		hEneCrystalMCTrg2 = 0;
 
 		hEneNoScintCrystalBeamTrg4 = 0;
 		hEneNoScintCrystalBeam2Trg4 = 0;
@@ -86,7 +85,7 @@ public:
 		hEneNoScintCrystalBeamTrg2 = 0;
 		hEneNoScintCrystalBeam2Trg2 = 0;
 		hEneNoScintCrystalCosmicsTrg2 = 0;
-
+		hEneNoScintCrystalMCTrg2 = 0;
 
 		hEneCrystalVsQScint5 = 0;
 		hEneCrystalVsQScint6 = 0;
@@ -103,6 +102,7 @@ public:
 		hEneVsPeakTimeTrg2 = 0;
 
 		QScintThr = 50;
+		isMC = false;
 
 	}
 	virtual ~BDXDSTSelector2() {
@@ -147,7 +147,6 @@ public:
 	TH1D *hTimeBinID;
 	vector<TH1D*> hTimeBins;
 
-
 	TH1D *hTrigAllEventsBeam;
 	TH1D *hTrigAllEventsBeam2;
 	TH1D *hTrigAllEventsCosmics;
@@ -155,6 +154,7 @@ public:
 	TH1D *hEneCrystalBeamTrg2;
 	TH1D *hEneCrystalBeam2Trg2;
 	TH1D *hEneCrystalCosmicsTrg2;
+	TH1D *hEneCrystalMCTrg2; //I use the "trg2" even if we don't have a trigger simulation, since trg2 is a very open TRG
 
 	TH1D *hEneCrystalBeamTrg4;
 	TH1D *hEneCrystalBeam2Trg4;
@@ -163,6 +163,7 @@ public:
 	TH1D *hEneNoScintCrystalBeamTrg2;
 	TH1D *hEneNoScintCrystalBeam2Trg2;
 	TH1D *hEneNoScintCrystalCosmicsTrg2;
+	TH1D *hEneNoScintCrystalMCTrg2;
 
 	TH1D *hEneNoScintCrystalBeamTrg4;
 	TH1D *hEneNoScintCrystalBeam2Trg4;
@@ -184,6 +185,7 @@ public:
 	double TPeakMin, TPeakMax;
 	double QScintThr;
 
+	bool isMC;
 
 	/*Methods*/
 	double getTimeInterval() {
@@ -209,9 +211,9 @@ public:
 		hTimeIntervals = h;
 	}
 
-	void sethTimeBinID(TH1D *h,int nBins){
-		hTimeBinID=h;
-		nTimeBins=nBins;
+	void sethTimeBinID(TH1D *h, int nBins) {
+		hTimeBinID = h;
+		nTimeBins = nBins;
 	}
 
 	void sethEnergyCorrection(TH1D *h) {
@@ -245,6 +247,9 @@ public:
 		QScintThr = scintThr;
 	}
 
+	void setIsMC(bool isMC) {
+		this->isMC = isMC;
+	}
 ClassDef(BDXDSTSelector2,1)
 	;
 

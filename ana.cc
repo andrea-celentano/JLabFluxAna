@@ -35,7 +35,7 @@ int nproof;
 int Ntot;
 int N0;
 
-bool showGUI, doTree;
+bool showGUI, doTree, isMC;
 
 string ofname, fname;
 vector<string> fnames;
@@ -48,6 +48,7 @@ void parseCommandLine(int argc, char **argv) {
 	ofname = "";
 
 	showGUI = false;
+	isMC = false;
 
 	for (int ii = 0; ii < argc; ii++) {
 		string command = string(argv[ii]);
@@ -68,7 +69,9 @@ void parseCommandLine(int argc, char **argv) {
 			Ntot = atoi(argv[ii + 1]);
 		} else if (command == "-GUI")
 			showGUI = true;
-		else if (command == "-tree") doTree = true;
+		else if (command == "-MC") {
+			isMC = true;
+		} else if (command == "-tree") doTree = true;
 	}
 }
 
@@ -172,8 +175,9 @@ int main(int argc, char **argv) {
 	}
 
 	myBDXDSTSelector->nEventsTotal = Ntot;
-	DSTChain->Process(myBDXDSTSelector, opt.c_str(), Ntot, N0);
-
+	if (!isMC) {
+		DSTChain->Process(myBDXDSTSelector, opt.c_str(), Ntot, N0);
+	}
 	cout << "After process " << endl;
 	TH1D *hTimeIntervals;
 	TH1D *hTimeBinID;
@@ -198,229 +202,247 @@ int main(int argc, char **argv) {
 	double Tbeam2 = 0;
 	double Qbeam2 = 0;
 	double Tcosmics = 0;
+	int TbinID = 0;
+	if (!isMC) {
+		hTimeIntervals = (TH1D*) myBDXDSTSelector->hCur1->Clone("hTimeIntervals");
+		hTimeIntervals->SetTitle("hTimeIntervals");
+		hTimeIntervals->Reset();
 
-	hTimeIntervals = (TH1D*) myBDXDSTSelector->hCur1->Clone("hTimeIntervals");
-	hTimeIntervals->SetTitle("hTimeIntervals");
-	hTimeIntervals->Reset();
+		hTimeBinID = (TH1D*) myBDXDSTSelector->hCur1->Clone("hTimeBinID");
+		hTimeBinID->SetTitle("hTimeBinID");
+		hTimeBinID->Reset();
 
-	hTimeBinID = (TH1D*) myBDXDSTSelector->hCur1->Clone("hTimeBinID");
-	hTimeBinID->SetTitle("hTimeBinID");
-	hTimeBinID->Reset();
+		cout << hTimeIntervals->GetNbinsX() << endl;
 
-	cout << hTimeIntervals->GetNbinsX() << endl;
+		/*In order to be conservative, the time-intervals analysis proceeds in this way:
+		 * 1. I loop over all the bins in hCur1, hLive1, hEne1 histograms
+		 * 2. For a given bin to be considered "cosmics" or "beam", that beam AND THE PREVIOUS ONE must satisfy the requirements
+		 * 3. The most efficient way to proceed is thus to loop from the maximum bin to the minimum one
+		 *
+		 */
+		double current, energy, livetime;
+		double currentPrev, energyPrev, livetimePrev;
+		for (int ibin = hTimeIntervals->GetNbinsX(); ibin >= 1; ibin--) {
+			current = myBDXDSTSelector->hCur1->GetBinContent(ibin);
+			energy = myBDXDSTSelector->hEne1->GetBinContent(ibin);
+			livetime = myBDXDSTSelector->hLive1->GetBinContent(ibin);
 
-	/*In order to be conservative, the time-intervals analysis proceeds in this way:
-	 * 1. I loop over all the bins in hCur1, hLive1, hEne1 histograms
-	 * 2. For a given bin to be considered "cosmics" or "beam", that beam AND THE PREVIOUS ONE must satisfy the requirements
-	 * 3. The most efficient way to proceed is thus to loop from the maximum bin to the minimum one
-	 *
-	 */
-	double current, energy, livetime;
-	double currentPrev, energyPrev, livetimePrev;
-	for (int ibin = hTimeIntervals->GetNbinsX(); ibin >= 1; ibin--) {
-		current = myBDXDSTSelector->hCur1->GetBinContent(ibin);
-		energy = myBDXDSTSelector->hEne1->GetBinContent(ibin);
-		livetime = myBDXDSTSelector->hLive1->GetBinContent(ibin);
+			currentPrev = myBDXDSTSelector->hCur1->GetBinContent(ibin - 1);
+			energyPrev = myBDXDSTSelector->hEne1->GetBinContent(ibin - 1);
+			livetimePrev = myBDXDSTSelector->hLive1->GetBinContent(ibin - 1);
 
-		currentPrev = myBDXDSTSelector->hCur1->GetBinContent(ibin - 1);
-		energyPrev = myBDXDSTSelector->hEne1->GetBinContent(ibin - 1);
-		livetimePrev = myBDXDSTSelector->hLive1->GetBinContent(ibin - 1);
+			cout << "ibin " << ibin << " " << current << " " << energy << " " << livetime << endl;
 
-		cout << "ibin " << ibin << " " << current << " " << energy << " " << livetime << endl;
+			/*BEAM-1*/
+			if ((current > beamCurrentMin) && (energy > beamEnergyMin) && (livetime > beamLivetimeMin) && (currentPrev > beamCurrentMin) && (energyPrev > beamEnergyMin) && (livetimePrev > beamLivetimeMin)) {
+				hTimeIntervals->SetBinContent(ibin, beam_11GeV);
+				Tbeam += hTimeIntervals->GetBinWidth(ibin);
+				Qbeam += hTimeIntervals->GetBinWidth(ibin) * current; //uC
+			}
 
-		/*BEAM-1*/
-		if ((current > beamCurrentMin) && (energy > beamEnergyMin) && (livetime > beamLivetimeMin) && (currentPrev > beamCurrentMin) && (energyPrev > beamEnergyMin) && (livetimePrev > beamLivetimeMin)) {
-			hTimeIntervals->SetBinContent(ibin, beam_11GeV);
-			Tbeam += hTimeIntervals->GetBinWidth(ibin);
-			Qbeam += hTimeIntervals->GetBinWidth(ibin) * current; //uC
-		}
-
-		/*BEAM-2*/
-		else if ((current > beamCurrentMin2) && (energy > beamEnergyMin2) && (energy < beamEnergyMax2) && (livetime > beamLivetimeMin2) && (currentPrev > beamCurrentMin2) && (energyPrev > beamEnergyMin2) && (energyPrev < beamEnergyMax2) && (livetimePrev > beamLivetimeMin2)) {
-			hTimeIntervals->SetBinContent(ibin, beam_4GeV);
-			Tbeam2 += hTimeIntervals->GetBinWidth(ibin);
-			Qbeam2 += hTimeIntervals->GetBinWidth(ibin) * current; //uC
-		}
-		/*COSMICS*/
-		else if ((current < cosmicsCurrentMax) && (livetime > cosmicsLivetimeMin) && (currentPrev < cosmicsCurrentMax) && (livetimePrev > cosmicsLivetimeMin)) {
-			hTimeIntervals->SetBinContent(ibin, cosmics);
-			Tcosmics += hTimeIntervals->GetBinWidth(ibin);
-		} else {
-			hTimeIntervals->SetBinContent(ibin, 0);
-		}
-	}
-	hTimeIntervals->SetBinContent(0, 0);
-
-	/*Now perform the time-depentent energy correction*/
-	hEneVsTime = (TH2D*) myBDXDSTSelector->hEneVsTime->Clone("hEneVsTime");
-	hEneCorrection = new TH1D("hEneCorrection", "hEneCorrection", hEneVsTime->GetNbinsX(), 0, Ttot);
-	hEneMean = new TH1D("hEneMean", "hEneMean", hEneVsTime->GetNbinsX(), 0, Ttot);
-
-	int fitResult;
-	double landauMean;
-	TH1D *hProj;
-	for (int ibin = 1; ibin < hEneVsTime->GetNbinsX(); ibin++) {
-
-		hProj = hEneVsTime->ProjectionY(Form("proj%i", ibin), ibin, ibin);
-		fitResult = hProj->Fit("landau", "L", "", 8, 100);
-		hEneCorrection->SetBinContent(ibin, 0);
-		if (fitResult == 0) {
-			landauMean = hProj->GetFunction("landau")->GetParameter(1);
-			if ((landauMean > landauMeanMin) && (landauMean < landauMeanMax)) {
-				hEneMean->SetBinContent(ibin, landauMean);
-				hEneCorrection->SetBinContent(ibin, landauMeanNominal / landauMean);
+			/*BEAM-2*/
+			else if ((current > beamCurrentMin2) && (energy > beamEnergyMin2) && (energy < beamEnergyMax2) && (livetime > beamLivetimeMin2) && (currentPrev > beamCurrentMin2) && (energyPrev > beamEnergyMin2) && (energyPrev < beamEnergyMax2) && (livetimePrev > beamLivetimeMin2)) {
+				hTimeIntervals->SetBinContent(ibin, beam_4GeV);
+				Tbeam2 += hTimeIntervals->GetBinWidth(ibin);
+				Qbeam2 += hTimeIntervals->GetBinWidth(ibin) * current; //uC
+			}
+			/*COSMICS*/
+			else if ((current < cosmicsCurrentMax) && (livetime > cosmicsLivetimeMin) && (currentPrev < cosmicsCurrentMax) && (livetimePrev > cosmicsLivetimeMin)) {
+				hTimeIntervals->SetBinContent(ibin, cosmics);
+				Tcosmics += hTimeIntervals->GetBinWidth(ibin);
+			} else {
+				hTimeIntervals->SetBinContent(ibin, 0);
 			}
 		}
-	}
-	/*Now tag the time of cosmics*/
-	double Tcounter=0;
-	int TbinID=0;
-	hTimeBinID->SetBinContent(0,-1);
-	for (int ibin = 1; ibin < hTimeIntervals->GetNbinsX(); ibin++) {
-		if (hTimeIntervals->GetBinContent(ibin) == cosmics) {
-			hTimeBinID->SetBinContent(ibin,TbinID);
-			Tcounter+=hTimeIntervals->GetBinWidth(ibin);
-			/*new bin*/
-			if (Tcounter/cosmicsTimeWidth>=1.){
-				Tcounter=0;
-				TbinID++;
+		hTimeIntervals->SetBinContent(0, 0);
+
+		/*Now perform the time-depentent energy correction*/
+		hEneVsTime = (TH2D*) myBDXDSTSelector->hEneVsTime->Clone("hEneVsTime");
+		hEneCorrection = new TH1D("hEneCorrection", "hEneCorrection", hEneVsTime->GetNbinsX(), 0, Ttot);
+		hEneMean = new TH1D("hEneMean", "hEneMean", hEneVsTime->GetNbinsX(), 0, Ttot);
+
+		int fitResult;
+		double landauMean;
+		TH1D *hProj;
+		for (int ibin = 1; ibin < hEneVsTime->GetNbinsX(); ibin++) {
+
+			hProj = hEneVsTime->ProjectionY(Form("proj%i", ibin), ibin, ibin);
+			fitResult = hProj->Fit("landau", "L", "", 8, 100);
+			hEneCorrection->SetBinContent(ibin, 0);
+			if (fitResult == 0) {
+				landauMean = hProj->GetFunction("landau")->GetParameter(1);
+				if ((landauMean > landauMeanMin) && (landauMean < landauMeanMax)) {
+					hEneMean->SetBinContent(ibin, landauMean);
+					hEneCorrection->SetBinContent(ibin, landauMeanNominal / landauMean);
+				}
 			}
 		}
-	}
+		/*Now tag the time of cosmics*/
+		double Tcounter = 0;
+
+		hTimeBinID->SetBinContent(0, -1);
+		for (int ibin = 1; ibin < hTimeIntervals->GetNbinsX(); ibin++) {
+			if (hTimeIntervals->GetBinContent(ibin) == cosmics) {
+				hTimeBinID->SetBinContent(ibin, TbinID);
+				Tcounter += hTimeIntervals->GetBinWidth(ibin);
+				/*new bin*/
+				if (Tcounter / cosmicsTimeWidth >= 1.) {
+					Tcounter = 0;
+					TbinID++;
+				}
+			}
+		}
+	} //end isMC
 
 	/*Now, process again*/
-	myBDXDSTSelector2->setTimeInterval(Ttot);
-	myBDXDSTSelector2->setT0(1. * Tfirst);
-	myBDXDSTSelector2->setTimeBin(timeBin);
-	myBDXDSTSelector2->setNProof(nproof);
-	myBDXDSTSelector2->nEventsTotal = Ntot;
-	myBDXDSTSelector2->sethTimeIntervals(hTimeIntervals);
-	myBDXDSTSelector2->sethEnergyCorrection(hEneCorrection);
+	if (!isMC) {
+		myBDXDSTSelector2->setTimeInterval(Ttot);
+		myBDXDSTSelector2->setT0(1. * Tfirst);
+		myBDXDSTSelector2->setTimeBin(timeBin);
+		myBDXDSTSelector2->setNProof(nproof);
+		myBDXDSTSelector2->nEventsTotal = Ntot;
+		myBDXDSTSelector2->sethTimeIntervals(hTimeIntervals);
+		myBDXDSTSelector2->sethEnergyCorrection(hEneCorrection);
 
-	myBDXDSTSelector2->setPeakMin(TPeakMin);
-	myBDXDSTSelector2->setPeakMax(TPeakMax);
-	myBDXDSTSelector2->setScintThr(QScintThr);
-	myBDXDSTSelector2->sethTimeBinID(hTimeBinID,TbinID+1);
+		myBDXDSTSelector2->setPeakMin(TPeakMin);
+		myBDXDSTSelector2->setPeakMax(TPeakMax);
+		myBDXDSTSelector2->setScintThr(QScintThr);
+		myBDXDSTSelector2->sethTimeBinID(hTimeBinID, TbinID + 1);
+	} else {
+		myBDXDSTSelector2->setTimeInterval(0.);
+		myBDXDSTSelector2->sethTimeIntervals(NULL);
+		myBDXDSTSelector2->sethEnergyCorrection(NULL);
+		myBDXDSTSelector2->sethTimeBinID(NULL, 1);
+	}
 
+	myBDXDSTSelector2->setIsMC(isMC);
 	DSTChain->Process(myBDXDSTSelector2, opt.c_str(), Ntot, N0);
 
 	/*Draw*/
-	TCanvas *c1 = new TCanvas("c1", "First pass");
-	c1->Divide(4, 3);
-	c1->cd(1);
-	myBDXDSTSelector->hTrigAllEvents->Draw("HIST");
-	c1->cd(2);
-	myBDXDSTSelector->hCur1->SetLineColor(1);
-	myBDXDSTSelector->hCur1->Draw("HIST");
-	hTimeIntervals->SetLineColor(2);
-	hTimeIntervals->Draw("HISTSAME");
-	c1->cd(3);
-	myBDXDSTSelector->hLive1->SetLineColor(1);
-	myBDXDSTSelector->hLive1->Draw("HIST");
+	if (!isMC) {
+		TCanvas *c1 = new TCanvas("c1", "First pass");
+		c1->Divide(4, 3);
+		c1->cd(1);
+		myBDXDSTSelector->hTrigAllEvents->Draw("HIST");
+		c1->cd(2);
+		myBDXDSTSelector->hCur1->SetLineColor(1);
+		myBDXDSTSelector->hCur1->Draw("HIST");
+		hTimeIntervals->SetLineColor(2);
+		hTimeIntervals->Draw("HISTSAME");
+		c1->cd(3);
+		myBDXDSTSelector->hLive1->SetLineColor(1);
+		myBDXDSTSelector->hLive1->Draw("HIST");
 
-	c1->cd(4);
-	myBDXDSTSelector->hTrigAllFPGA1->SetLineColor(1);
-	myBDXDSTSelector->hTrigAllFPGA1->Draw("HIST");
+		c1->cd(4);
+		myBDXDSTSelector->hTrigAllFPGA1->SetLineColor(1);
+		myBDXDSTSelector->hTrigAllFPGA1->Draw("HIST");
 
-	myBDXDSTSelector->hTrigAccFPGA1->SetLineColor(2);
-	myBDXDSTSelector->hTrigAccFPGA1->Draw("HISTSAME");
+		myBDXDSTSelector->hTrigAccFPGA1->SetLineColor(2);
+		myBDXDSTSelector->hTrigAccFPGA1->Draw("HISTSAME");
 
-	c1->cd(5);
-	myBDXDSTSelector->hEne1->SetLineColor(1);
-	myBDXDSTSelector->hEne1->Draw("HIST");
+		c1->cd(5);
+		myBDXDSTSelector->hEne1->SetLineColor(1);
+		myBDXDSTSelector->hEne1->Draw("HIST");
 
-	c1->cd(6);
-	myBDXDSTSelector->hTemperature1->SetLineColor(1);
-	myBDXDSTSelector->hTemperature1->Draw("HIST");
+		c1->cd(6);
+		myBDXDSTSelector->hTemperature1->SetLineColor(1);
+		myBDXDSTSelector->hTemperature1->Draw("HIST");
 
-	c1->cd(7);
-	myBDXDSTSelector->hEneVsTime->Draw("COLZ");
-	c1->cd(8);
-	hEneMean->Draw();
-	c1->cd(9);
-	myBDXDSTSelector->hEneVsPeakTime->Draw("colz");
-	c1->cd(10);
-	hTimeIntervals->Draw();
-	hTimeBinID->Draw("SAME");
+		c1->cd(7);
+		myBDXDSTSelector->hEneVsTime->Draw("COLZ");
+		c1->cd(8);
+		hEneMean->Draw();
+		c1->cd(9);
+		myBDXDSTSelector->hEneVsPeakTime->Draw("colz");
+		c1->cd(10);
+		hTimeIntervals->Draw();
+		hTimeBinID->Draw("SAME");
 
-	TCanvas *c1a = new TCanvas("c1a", "First pass scintillator1");
-	c1a->Divide(3, 3);
-	c1a->cd(1);
-	myBDXDSTSelector->hQVsTime1Scint5->Draw("colz");
-	c1a->cd(2);
-	myBDXDSTSelector->hQVsPeakTimeScint5->Draw("colz");
-	c1a->cd(4);
-	myBDXDSTSelector->hQVsTime1Scint6->Draw("colz");
-	c1a->cd(5);
-	myBDXDSTSelector->hQVsPeakTimeScint6->Draw("colz");
+		TCanvas *c1a = new TCanvas("c1a", "First pass scintillator1");
+		c1a->Divide(3, 3);
+		c1a->cd(1);
+		myBDXDSTSelector->hQVsTime1Scint5->Draw("colz");
+		c1a->cd(2);
+		myBDXDSTSelector->hQVsPeakTimeScint5->Draw("colz");
+		c1a->cd(4);
+		myBDXDSTSelector->hQVsTime1Scint6->Draw("colz");
+		c1a->cd(5);
+		myBDXDSTSelector->hQVsPeakTimeScint6->Draw("colz");
+	}
 
 	TCanvas *c2 = new TCanvas("c2", "Second pass");
 	c2->Divide(3, 3);
 	c2->cd(1);
-	myBDXDSTSelector2->hTrigAllEventsBeam->Draw("HIST");
+	if (!isMC) {
+		myBDXDSTSelector2->hTrigAllEventsBeam->Draw("HIST");
 
-	myBDXDSTSelector2->hTrigAllEventsBeam2->SetLineColor(3);
-	myBDXDSTSelector2->hTrigAllEventsBeam2->Draw("HIST");
+		myBDXDSTSelector2->hTrigAllEventsBeam2->SetLineColor(3);
+		myBDXDSTSelector2->hTrigAllEventsBeam2->Draw("HIST");
 
-	myBDXDSTSelector2->hTrigAllEventsCosmics->SetLineColor(2);
-	myBDXDSTSelector2->hTrigAllEventsCosmics->Draw("HISTSAME");
-
+		myBDXDSTSelector2->hTrigAllEventsCosmics->SetLineColor(2);
+		myBDXDSTSelector2->hTrigAllEventsCosmics->Draw("HISTSAME");
+	}
 	c2->cd(2);
+	if (!isMC) {
+		TH1D *hEneCrystalBeamTrg2Clone = (TH1D*) myBDXDSTSelector2->hEneCrystalBeamTrg2->Clone();
+		hEneCrystalBeamTrg2Clone->Scale(1. / Tbeam, "width");
 
-	TH1D *hEneCrystalBeamTrg2Clone = (TH1D*) myBDXDSTSelector2->hEneCrystalBeamTrg2->Clone();
-	hEneCrystalBeamTrg2Clone->Scale(1. / Tbeam, "width");
+		TH1D *hEneCrystalBeam2Trg2Clone = (TH1D*) myBDXDSTSelector2->hEneCrystalBeam2Trg2->Clone();
+		hEneCrystalBeam2Trg2Clone->Scale(1. / Tbeam2, "width");
 
-	TH1D *hEneCrystalBeam2Trg2Clone = (TH1D*) myBDXDSTSelector2->hEneCrystalBeam2Trg2->Clone();
-	hEneCrystalBeam2Trg2Clone->Scale(1. / Tbeam2, "width");
+		TH1D *hEneCrystalCosmicsTrg2Clone = (TH1D*) myBDXDSTSelector2->hEneCrystalCosmicsTrg2->Clone();
+		hEneCrystalCosmicsTrg2Clone->Scale(1. / Tcosmics, "width");
 
-	TH1D *hEneCrystalCosmicsTrg2Clone = (TH1D*) myBDXDSTSelector2->hEneCrystalCosmicsTrg2->Clone();
-	hEneCrystalCosmicsTrg2Clone->Scale(1. / Tcosmics, "width");
+		hEneCrystalBeamTrg2Clone->Draw();
 
-	hEneCrystalBeamTrg2Clone->Draw();
+		hEneCrystalBeam2Trg2Clone->SetLineColor(3);
+		hEneCrystalBeam2Trg2Clone->Draw("SAMES");
 
-	hEneCrystalBeam2Trg2Clone->SetLineColor(3);
-	hEneCrystalBeam2Trg2Clone->Draw("SAMES");
-
-	hEneCrystalCosmicsTrg2Clone->SetLineColor(2);
-	hEneCrystalCosmicsTrg2Clone->Draw("SAMES");
-
+		hEneCrystalCosmicsTrg2Clone->SetLineColor(2);
+		hEneCrystalCosmicsTrg2Clone->Draw("SAMES");
+	} else {
+		myBDXDSTSelector2->hEneCrystalMCTrg2->Draw();
+	}
 	c2->cd(3);
+	if (!isMC) {
+		TH1D *hEneCrystalBeamTrg4Clone = (TH1D*) myBDXDSTSelector2->hEneCrystalBeamTrg4->Clone();
+		hEneCrystalBeamTrg4Clone->Scale(1. / Tbeam, "width");
 
-	TH1D *hEneCrystalBeamTrg4Clone = (TH1D*) myBDXDSTSelector2->hEneCrystalBeamTrg4->Clone();
-	hEneCrystalBeamTrg4Clone->Scale(1. / Tbeam, "width");
+		TH1D *hEneCrystalBeam2Trg4Clone = (TH1D*) myBDXDSTSelector2->hEneCrystalBeam2Trg4->Clone();
+		hEneCrystalBeam2Trg4Clone->Scale(1. / Tbeam2, "width");
 
-	TH1D *hEneCrystalBeam2Trg4Clone = (TH1D*) myBDXDSTSelector2->hEneCrystalBeam2Trg4->Clone();
-	hEneCrystalBeam2Trg4Clone->Scale(1. / Tbeam2, "width");
+		TH1D *hEneCrystalCosmicsTrg4Clone = (TH1D*) myBDXDSTSelector2->hEneCrystalCosmicsTrg4->Clone();
+		hEneCrystalCosmicsTrg4Clone->Scale(1. / Tcosmics, "width");
 
-	TH1D *hEneCrystalCosmicsTrg4Clone = (TH1D*) myBDXDSTSelector2->hEneCrystalCosmicsTrg4->Clone();
-	hEneCrystalCosmicsTrg4Clone->Scale(1. / Tcosmics, "width");
+		hEneCrystalBeamTrg4Clone->Draw();
 
-	hEneCrystalBeamTrg4Clone->Draw();
+		hEneCrystalBeam2Trg4Clone->SetLineColor(3);
+		hEneCrystalBeam2Trg4Clone->Draw("SAMES");
 
-	hEneCrystalBeam2Trg4Clone->SetLineColor(3);
-	hEneCrystalBeam2Trg4Clone->Draw("SAMES");
-
-	hEneCrystalCosmicsTrg4Clone->SetLineColor(2);
-	hEneCrystalCosmicsTrg4Clone->Draw("SAMES");
-
+		hEneCrystalCosmicsTrg4Clone->SetLineColor(2);
+		hEneCrystalCosmicsTrg4Clone->Draw("SAMES");
+	}
 	c2->cd(5);
-	TH1D *hEneNoScintCrystalBeamTrg2Clone = (TH1D*) myBDXDSTSelector2->hEneNoScintCrystalBeamTrg2->Clone();
-	hEneNoScintCrystalBeamTrg2Clone->Scale(1. / Tbeam, "width");
+	if (!isMC) {
+		TH1D *hEneNoScintCrystalBeamTrg2Clone = (TH1D*) myBDXDSTSelector2->hEneNoScintCrystalBeamTrg2->Clone();
+		hEneNoScintCrystalBeamTrg2Clone->Scale(1. / Tbeam, "width");
 
-	TH1D *hEneNoScintCrystalBeam2Trg2Clone = (TH1D*) myBDXDSTSelector2->hEneNoScintCrystalBeam2Trg2->Clone();
-	hEneNoScintCrystalBeam2Trg2Clone->Scale(1. / Tbeam2, "width");
+		TH1D *hEneNoScintCrystalBeam2Trg2Clone = (TH1D*) myBDXDSTSelector2->hEneNoScintCrystalBeam2Trg2->Clone();
+		hEneNoScintCrystalBeam2Trg2Clone->Scale(1. / Tbeam2, "width");
 
-	TH1D *hEneNoScintCrystalCosmicsTrg2Clone = (TH1D*) myBDXDSTSelector2->hEneNoScintCrystalCosmicsTrg2->Clone();
-	hEneNoScintCrystalCosmicsTrg2Clone->Scale(1. / Tcosmics, "width");
+		TH1D *hEneNoScintCrystalCosmicsTrg2Clone = (TH1D*) myBDXDSTSelector2->hEneNoScintCrystalCosmicsTrg2->Clone();
+		hEneNoScintCrystalCosmicsTrg2Clone->Scale(1. / Tcosmics, "width");
 
-	hEneNoScintCrystalBeamTrg2Clone->Draw();
+		hEneNoScintCrystalBeamTrg2Clone->Draw();
 
-	hEneNoScintCrystalBeam2Trg2Clone->SetLineColor(3);
-	hEneNoScintCrystalBeam2Trg2Clone->Draw("SAMES");
+		hEneNoScintCrystalBeam2Trg2Clone->SetLineColor(3);
+		hEneNoScintCrystalBeam2Trg2Clone->Draw("SAMES");
 
-	hEneNoScintCrystalCosmicsTrg2Clone->SetLineColor(2);
-	hEneNoScintCrystalCosmicsTrg2Clone->Draw("SAMES");
-
+		hEneNoScintCrystalCosmicsTrg2Clone->SetLineColor(2);
+		hEneNoScintCrystalCosmicsTrg2Clone->Draw("SAMES");
+	} else {
+		myBDXDSTSelector2->hEneNoScintCrystalMCTrg2->Draw();
+	}
 	c2->cd(7);
 	myBDXDSTSelector2->hEneVsPeakTimeTrg2->Draw("colz");
 	c2->cd(8);
@@ -435,19 +457,20 @@ int main(int argc, char **argv) {
 	cout << "EOT2: " << Qbeam2 * 1E-6 / 1.6E-19 << endl;
 
 	cout << "TCOSMICS: " << Tcosmics << endl;
-	cout << "BEAM COSMICS: "<<TbinID+1<<" divide: "<<Tcosmics/cosmicsTimeWidth<<endl;
+	cout << "BEAM COSMICS: " << TbinID + 1 << " divide: " << Tcosmics / cosmicsTimeWidth << endl;
 	/*Use this ordering to avoid redo computation @ 11 GeV*/
+
 	TVectorD v(6);
 	v[0] = Tbeam;
 	v[1] = Qbeam * 1E-6 / 1.6E-19;
 	v[2] = Tbeam2;
 	v[3] = Qbeam2 * 1E-6 / 1.6E-19;
 	v[4] = Tcosmics;
-	v[5] = TbinID+1;
+	v[5] = TbinID + 1;
 	/*Write histograms on the output file*/
 
-	TObjArray *hArray=new TObjArray();
-	for (int ii=0;ii<(TbinID+1);ii++){
+	TObjArray *hArray = new TObjArray();
+	for (int ii = 0; ii < (TbinID + 1); ii++) {
 		hArray->Add(myBDXDSTSelector2->hTimeBins[ii]);
 	}
 
@@ -483,7 +506,7 @@ int main(int argc, char **argv) {
 		myBDXDSTSelector2->hEneCrystalVsQScint6->Write();
 
 		hArray->Write();
-		v.Write("v");
+		if (!isMC) v.Write("v");
 		ofile->Close();
 	}
 	if (showGUI) {
